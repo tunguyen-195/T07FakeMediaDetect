@@ -22,6 +22,7 @@ Một ứng dụng web hiện đại, chuyên nghiệp để phát hiện ảnh 
 - [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
 - [Mô hình AI](#-mô-hình-ai)
 - [Tài liệu](#-tài-liệu)
+- [Credits & Attribution](#-credits--attribution)
 - [Đóng góp](#-đóng-góp)
 - [Giấy phép](#-giấy-phép)
 - [Tác giả](#-tác-giả)
@@ -982,9 +983,44 @@ Nếu bạn thấy dự án hữu ích, hãy cho một **star** ⭐ trên GitHub
 
 ---
 
+## 🙏 Credits & Attribution
+
+### **Original Project**
+
+This project is based on and extends **[IFAKE - Image/Video Forgery Detection Application](https://github.com/shraddhavijay/IFAKE)** by:
+- **Shraddha Pawar**
+- **Gaurangi Pradhan**  
+- **Bhavin Goswami**
+
+**Original License:** MIT License
+
+### **Research Paper**
+
+The AI models and methodology are based on:
+- **Paper:** "Image Forgery Detection and Classification Using Deep Learning and FIDAC Dataset"
+- **Published:** IEEE Explore (2022)
+- **DOI:** https://ieeexplore.ieee.org/document/9862034
+- **Dataset:** [FIDAC on IEEE Dataport](https://ieee-dataport.org/documents/fidac-forged-images-detection-and-classification)
+
+### **T07FakeMediaDetect Enhancements**
+
+This fork adds:
+- ✅ AV1 codec compatibility fixes for video analysis
+- ✅ H.264 video conversion utilities
+- ✅ Windows batch scripts for easy setup
+- ✅ Comprehensive Vietnamese/English documentation
+- ✅ Enhanced error handling and user feedback
+- ✅ Security best practices (.env, secrets management)
+- ✅ Git LFS support for large model files
+- ✅ Improved session management
+
+**See [CREDITS.md](CREDITS.md) for complete attribution and license compliance.**
+
+---
+
 ## 📝 Citation
 
-Nếu sử dụng dự án này trong nghiên cứu, vui lòng cite:
+### **For T07FakeMediaDetect:**
 
 ```bibtex
 @software{t07fakemediadetect2025,
@@ -992,18 +1028,21 @@ Nếu sử dụng dự án này trong nghiên cứu, vui lòng cite:
   author = {T07 Team},
   year = {2025},
   version = {2.0.0},
-  url = {https://github.com/yourusername/T07FakeMediaDetect}
+  url = {https://github.com/tunguyen-195/T07FakeMediaDetect},
+  note = {Based on IFAKE by Pawar et al.}
 }
 ```
 
-**Original IFAKE Paper:**
+### **Original IFAKE Paper (Please cite this too):**
+
 ```bibtex
-@inproceedings{pawar2022ifake,
+@inproceedings{pawar2022image,
   title={Image Forgery Detection and Classification Using Deep Learning and FIDAC Dataset},
   author={Pawar, Shraddha and Pradhan, Gaurangi and Goswami, Bhavin},
-  booktitle={IEEE Conference},
+  booktitle={2022 IEEE Conference},
   year={2022},
-  doi={10.1109/...}
+  organization={IEEE},
+  doi={10.1109/...9862034}
 }
 ```
 
