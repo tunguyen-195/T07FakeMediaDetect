@@ -1,0 +1,146 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+    <title>T07FakeMediaDetect - Hệ thống phát hiện tệp đa phương tiện giả mạo T07 | Trang chủ</title>
+    <meta name="description" content="Hệ thống phát hiện tệp đa phương tiện giả mạo T07 - Sử dụng Deep Learning để phân tích tính xác thực của ảnh và video">
+    <link rel="stylesheet" href="{% static 'assets/bootstrap/css/bootstrap.min.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'assets/css/style_v2.css' %}">
+</head>
+
+<body>
+    <nav class="navbar navbar-dark navbar-expand-lg fixed-top navbar-custom">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'index' %}">
+                <img src="{% static 'assets/img/logo.png' %}" alt="T07FakeMediaDetect Logo" style="height:40px;">
+                <span style="font-size: 0.95rem;">T07FakeMediaDetect</span>
+            </a>
+            <button data-toggle="collapse" class="navbar-toggler" data-target="#navbarResponsive">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarResponsive">
+                <ul class="nav navbar-nav ml-auto">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'image' %}">Ảnh</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'video' %}">Video</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'pdf' %}">PDF</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <header class="masthead text-center text-white">
+        <div class="masthead-content">
+            <div class="hero-badge">T07 SYSTEM</div>
+            <h1 class="masthead-heading t07-hero-title">FakeMediaDetect</h1>
+            <h2 class="masthead-subheading t07-subtitle">
+                Hệ thống phát hiện giả mạo đa phương tiện bằng AI
+            </h2>
+            <p class="hero-description">Deep Learning • Error Level Analysis • Forensic Tools</p>
+            <div class="t07-btn-group">
+                    <a class="btn btn-primary btn-xl rounded-pill" role="button" href="{% url 'image' %}">
+                        Phân tích Ảnh
+                    </a>
+                    <a class="btn btn-primary btn-xl rounded-pill" role="button" href="{% url 'video' %}">
+                        Phân tích Video
+                    </a>
+                    <a class="btn btn-primary btn-xl rounded-pill" role="button" href="{% url 'pdf' %}">
+                        Phân tích PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="bg-circle-1 bg-circle"></div>
+        <div class="bg-circle-2 bg-circle"></div>
+        <div class="bg-circle-3 bg-circle"></div>
+        <div class="bg-circle-4 bg-circle"></div>
+    </header>
+    <section class="t07-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-2">
+                    <div class="t07-card">
+                        <img class="img-fluid" src="{% static 'assets/img/retouching.png' %}" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
+                    </div>
+                </div>
+                <div class="col-lg-6 order-lg-1">
+                    <div class="t07-card">
+                        <h2>🖼️ Phát hiện Giả mạo Ảnh</h2>
+                        <p>Sử dụng mô hình CNN kết hợp với kỹ thuật Error Level Analysis (ELA) để phát hiện các vùng bị chỉnh sửa trong ảnh. Hệ thống phân tích các bất thường về nén JPEG, nhiễu, và các dấu vết kỹ thuật số khác.</p>
+                        <p><strong>Các kỹ thuật phát hiện:</strong></p>
+                        <ul>
+                            <li>Error Level Analysis (ELA)</li>
+                            <li>Phân tích nhiễu (Noise Analysis)</li>
+                            <li>Phát hiện sao chép-di chuyển (Copy-Move Detection)</li>
+                            <li>Phân tích metadata EXIF</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section class="t07-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-1">
+                    <div class="t07-card">
+                        <img class="img-fluid" src="{% static 'assets/img/video-forgery.jpg' %}" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
+                    </div>
+                </div>
+                <div class="col-lg-6 order-lg-2">
+                    <div class="t07-card">
+                        <h2>🎥 Phát hiện Giả mạo Video</h2>
+                        <p>Phân tích từng khung hình của video để phát hiện các dấu hiệu chỉnh sửa, deepfake, hoặc ghép nối không tự nhiên. Hệ thống kiểm tra tính nhất quán giữa các khung hình và phát hiện bất thường.</p>
+                        <p><strong>Tính năng:</strong></p>
+                        <ul>
+                            <li>Phân tích khung hình (Frame-by-frame analysis)</li>
+                            <li>Phát hiện deepfake</li>
+                            <li>Kiểm tra tính nhất quán temporal</li>
+                            <li>Trích xuất metadata video</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section class="t07-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-2">
+                    <div class="t07-card">
+                        <img class="img-fluid" src="{% static 'assets/img/ifake.jpg' %}" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
+                    </div>
+                </div>
+                <div class="col-lg-6 order-lg-1">
+                    <div class="t07-card">
+                        <h2>🤖 Công nghệ AI tiên tiến</h2>
+                        <p>T07FakeMediaDetect sử dụng mô hình Deep Learning được huấn luyện trên dataset FIDAC và CASIA để đạt độ chính xác cao trong việc phát hiện giả mạo. Hệ thống kết hợp nhiều kỹ thuật forensics để đưa ra kết quả đáng tin cậy.</p>
+                        <p><strong>Ưu điểm:</strong></p>
+                        <ul>
+                            <li>Độ chính xác cao với mô hình CNN tối ưu</li>
+                            <li>Giao diện đơn giản, dễ sử dụng</li>
+                            <li>Hỗ trợ nhiều định dạng: Image, Video, PDF</li>
+                            <li>Cung cấp phân tích chi tiết và trực quan</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <footer class="py-5 bg-black">
+        <div class="container">
+            <p class="text-center text-white m-0 small">© 2025 T07FakeMediaDetect - Hệ thống phát hiện tệp đa phương tiện giả mạo T07 | Powered by Deep Learning & AI</p>
+        </div>
+    </footer>
+    <script src="{% static 'assets/js/jquery.min.js' %}"></script>
+    <script src="{% static 'assets/bootstrap/js/bootstrap.min.js' %}"></script>
+</body>
+
+</html>
