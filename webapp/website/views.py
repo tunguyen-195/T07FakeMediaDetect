@@ -188,23 +188,29 @@ def runPdf2image(request):
                 pdfinfo_exe = shutil.which('pdfinfo')
                 if pdfinfo_exe:
                     return os.path.dirname(pdfinfo_exe)
-                # 3) Probe common locations
+                # 3) Check project-local poppler (bundled)
+                project_poppler = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'poppler', 'Library', 'bin')
+                if os.path.isdir(project_poppler) and os.path.exists(os.path.join(project_poppler, 'pdfinfo.exe')):
+                    return project_poppler
+                # 4) Probe common locations
                 candidates = []
                 local_appdata = os.environ.get('LOCALAPPDATA', '')
                 if local_appdata:
                     winget_root = os.path.join(local_appdata, 'Microsoft', 'WinGet', 'Packages')
                     if os.path.isdir(winget_root):
-                        # Walk once and return first pdfinfo.exe found
                         for root, _dirs, files in os.walk(winget_root):
                             if 'pdfinfo.exe' in files:
                                 return root
                 # Chocolatey
-                candidates.append(r"C:\\ProgramData\\chocolatey\\lib\\poppler\\tools")
+                candidates.append(r"C:\ProgramData\chocolatey\lib\poppler\tools")
                 # Scoop
-                candidates.append(os.path.expanduser(r"~\\scoop\\apps\\poppler\\current\\bin"))
+                candidates.append(os.path.expanduser(r"~\scoop\apps\poppler\current\bin"))
                 # Program Files
-                candidates.append(r"C:\\Program Files\\poppler\\bin")
-                candidates.append(r"C:\\Program Files (x86)\\poppler\\bin")
+                candidates.append(r"C:\Program Files\poppler\bin")
+                candidates.append(r"C:\Program Files (x86)\poppler\bin")
+                # Common manual install locations
+                candidates.append(r"C:\poppler\Library\bin")
+                candidates.append(r"C:\poppler\bin")
                 for c in candidates:
                     if os.path.isdir(c) and os.path.exists(os.path.join(c, 'pdfinfo.exe')):
                         return c

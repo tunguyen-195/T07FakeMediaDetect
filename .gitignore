@@ -127,4 +127,7 @@ Datasets/
 *.h5
 *.pkl
 
+# Poppler binaries (installed via install_poppler.bat)
+webapp/poppler/
+
 # End of file
