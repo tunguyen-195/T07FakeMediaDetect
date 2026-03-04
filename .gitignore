@@ -117,4 +117,8 @@ webapp/media/*.webm
 # Keep only H.264 test videos for demo purposes
 # These are small converted videos that demonstrate the system works
 
+# Project-specific ignored folders
+docs/
+thesis_context/
+
 # End of file
