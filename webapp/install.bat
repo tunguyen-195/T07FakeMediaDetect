@@ -2,6 +2,7 @@
 :: ====================================================================
 :: T07FakeMediaDetect - Installation Script
 :: Hệ thống phát hiện tệp đa phương tiện giả mạo T07
+:: Yêu cầu: Python 3.9 (TensorFlow 2.6 không hỗ trợ Python 3.10+)
 :: ====================================================================
 
 COLOR 0B
@@ -10,29 +11,63 @@ title T07FakeMediaDetect - Installation
 echo.
 echo ========================================================
 echo  T07FakeMediaDetect - Installation Setup
-echo  Hệ thống phát hiện tệp đa phương tiện giả mạo T07
+echo  He thong phat hien tep da phuong tien gia mao T07
 echo ========================================================
 echo.
 
-:: Check if Python is installed
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Python is not installed or not in PATH!
-    echo Please install Python 3.9 or higher from:
-    echo https://www.python.org/downloads/
-    echo.
-    pause
-    exit /b 1
+:: ============================================================
+:: Auto-detect Python 3.9 using py launcher or direct path
+:: ============================================================
+set PYTHON_CMD=
+
+:: Try 1: py -3.9 (Windows Python Launcher)
+py -3.9 --version >nul 2>&1
+if %errorlevel% equ 0 (
+    set PYTHON_CMD=py -3.9
+    goto :python_found
 )
 
-echo [INFO] Python detected:
-python --version
+:: Try 2: python3.9
+python3.9 --version >nul 2>&1
+if %errorlevel% equ 0 (
+    set PYTHON_CMD=python3.9
+    goto :python_found
+)
+
+:: Try 3: Check default python version
+for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set PY_VER=%%v
+echo [INFO] Default Python version: %PY_VER%
+echo %PY_VER% | findstr /B "3.9" >nul
+if %errorlevel% equ 0 (
+    set PYTHON_CMD=python
+    goto :python_found
+)
+
+:: Python 3.9 not found
+echo.
+echo [ERROR] Python 3.9 is REQUIRED but not found!
+echo.
+echo This project uses TensorFlow 2.6 which only supports Python 3.6-3.9.
+echo Your current Python version is: %PY_VER%
+echo.
+echo Please install Python 3.9 from:
+echo   https://www.python.org/downloads/release/python-3913/
+echo.
+echo NOTE: You can install Python 3.9 alongside your current Python.
+echo       After installing, run this script again.
+echo.
+pause
+exit /b 1
+
+:python_found
+echo [INFO] Using Python 3.9:
+%PYTHON_CMD% --version
 echo.
 
 :: Check if virtual environment exists
 if exist ".venv-tf" (
     echo [INFO] Virtual environment already exists.
-    echo Do you want to recreate it? (This will delete existing environment)
+    echo Do you want to recreate it? (This will delete existing environment^)
     choice /C YN /M "Recreate virtual environment"
     if errorlevel 2 goto :skip_venv
     if errorlevel 1 (
@@ -42,11 +77,10 @@ if exist ".venv-tf" (
 )
 
 :create_venv
-echo [INFO] Creating virtual environment...
-python -m venv .venv-tf
+echo [INFO] Creating virtual environment with Python 3.9...
+%PYTHON_CMD% -m venv .venv-tf
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to create virtual environment!
-    echo Make sure you have python3-venv installed.
     pause
     exit /b 1
 )
@@ -84,14 +118,20 @@ echo  Installation completed successfully!
 echo ========================================================
 echo.
 echo Next steps:
-echo 1. Download model files from:
-echo    https://drive.google.com/drive/folders/1B4ODeK_QQ6XMFo6i6EEup1nZC6PllVfu
-echo.
-echo 2. Place model files in the 'models' folder:
+echo 1. Copy model files into the 'models' folder:
 echo    - proposed_ela_50_casia_fidac.h5
 echo    - segmenter_weights.h5
+echo    - forgery_model_me.hdf5
+echo    - hybrid_svm_model.pkl
+echo    - hybrid_scaler.pkl
 echo.
-echo 3. Run 'start.bat' to launch the server
+echo 2. Copy .env.example to .env:
+echo    copy .env.example .env
+echo.
+echo 3. Run database migration:
+echo    .venv-tf\Scripts\python.exe manage.py migrate
+echo.
+echo 4. Run 'start.bat' to launch the server
 echo.
 echo ========================================================
 echo.
