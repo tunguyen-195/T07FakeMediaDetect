@@ -217,8 +217,7 @@ def runPdf2image(request):
             images = convert_from_path(fileurl, poppler_path=poppler_path) if poppler_path else convert_from_path(fileurl)
             print(f"[DEBUG] Converted {len(images)} pages from PDF")
             
-            imageurl = []
-            pdfImagesResults = []
+            final_pdf_results = []
             
             for i in range(len(images)):
                 # Save pages as images in the pdf
@@ -227,20 +226,22 @@ def runPdf2image(request):
                 images[i].save(page_save_path, 'JPEG')
                 print(f"[DEBUG] Saved page {i}: {page_save_path}")
                 
-                # This list is used to generate table on pdf.html
-                imageurl.append('../media/' + pageName)
+                # Generate URL
+                image_url = '../media/' + pageName
                 imagefileurl = os.path.join(os.getcwd(), 'media', pageName)
                 
                 # Analyze each page
                 res = FID().predict_result(imagefileurl)
-                result = {'type': res[0], 'confidence': res[1]}
-                pdfImagesResults.append(result)
+                friendly_type = 'Ảnh nguyên bản' if res[0] == 'Authentic' else 'Ảnh đã qua chỉnh sửa'
+                result_data = {'type': friendly_type, 'confidence': res[1]}
+                
                 print(f"[DEBUG] Page {i} result: {res[0]} ({res[1]}%)")
+                
+                final_pdf_results.append((image_url, result_data))
             
-            res = zip(imageurl, pdfImagesResults)
             return render(request, "pdf.html", {
                 'input_pdf': inputPdfUrl,
-                'pdf_img': res
+                'pdf_img': final_pdf_results
             })
             
         except Exception as e:
@@ -314,54 +315,16 @@ def runAnalysis(request):
             print('fileurl---------------------------',fileurl)
             res = FID().predict_result(decoded_path)
 
-            if res[0] == 'Authentic':
-                result = {'type': res[0], 'confidence': res[1]}
-                inputImage=inputImageUrl
-                inputImageUrl=''
-
-                return render(request, "image.html",
-                              {'result': result, 'input_image': inputImage, 'metadata': infoDict.items()})
-
-            elif res[0] == 'Forged':
-                # cmd = OptionParser("usage: %prog image_file [options]")
-                # cmd.add_option('', '--imauto', help='Automatically search identical regions. (default: %default)', default=1)
-                # cmd.add_option('', '--imblev',help='Blur level for degrading image details. (default: %default)', default=8)
-                # cmd.add_option('', '--impalred',help='Image palette reduction factor. (default: %default)', default=15)
-                # cmd.add_option('', '--rgsim', help='Region similarity threshold. (default: %default)', default=5)
-                # cmd.add_option('', '--rgsize',help='Region size threshold. (default: %default)', default=1.5)
-                # cmd.add_option('', '--blsim', help='Block similarity threshold. (default: %default)',default=200)
-                # cmd.add_option('', '--blcoldev', help='Block color deviation threshold. (default: %default)', default=0.2)
-                # cmd.add_option('', '--blint', help='Block intersection threshold. (default: %default)', default=0.2)
-                # opt, args = cmd.parse_args()
-                # if not args:
-                #     cmd.print_help()
-                #     sys.exit()
-                # im_str = args[0]
-
-                # print('\nRunning double jpeg compression detection...\n')
-                # double_compressed = djc.detect(fileurl)      # check type of forgery
-                # if(double_compressed): compression= 'Double compressed'
-                # else: compression= 'Single compressed'
-
-                # print('\nRunning noise variance inconsistency detection...')
-                # noise_forgery = nvar.detect(fileurl)
-
-                # if(noise_forgery): noise_var=1
-                # else: noise_var= 0
-
-                # print('\nRunning CFA artifact detection...\n')
-                # identical_regions_cfa = cfa.detect(fileurl, opt, args)
-                # identical_regions = dumps(identical_regions_cfa)
-                # print(identical_regions_cfa, 'identical regions detected')
-
-                # res= FID().predict_result(fileurl) called above
-                
-                result = {'type': res[0], 'confidence': res[
-                    1]}  # 'compression':compression, 'noise_var':noise_var, 'identical_regions': identical_regions}
-                inputImage=inputImageUrl
-                inputImageUrl=''
-                return render(request, "image.html",
-                              {'result': result, 'input_image': inputImage, 'metadata': infoDict.items()})
+            is_authentic = (res[0] == 'Authentic')
+            friendly_type = 'Ảnh nguyên bản' if is_authentic else 'Ảnh đã qua chỉnh sửa'
+            
+            result = {'type': friendly_type, 'confidence': res[1]}
+            
+            inputImage = inputImageUrl
+            inputImageUrl = ''
+            
+            return render(request, "image.html",
+                          {'result': result, 'input_image': inputImage, 'metadata': infoDict.items()})
 
 
 def runVideoAnalysis(request):
@@ -426,6 +389,13 @@ def runVideoAnalysis(request):
             
             # Detect forgery
             result = detect_video_forgery(fileVideoUrl)
+            
+            # Map result to Vietnamese
+            if result.get('result') == 'Authentic':
+                result['result'] = 'Video nguyên bản'
+            elif result.get('result') == 'Forged':
+                result['result'] = 'Video đã qua chỉnh sửa'
+                
             print(f"[DEBUG] Detection result: {result}")
             
             return render(request, "video.html", {

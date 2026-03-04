@@ -5,44 +5,44 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
-    <title>T07FakeMediaDetect - Phát hiện Giả mạo PDF</title>
-    <meta name="description" content="Hệ thống T07 - Phân tích và phát hiện giả mạo ảnh trong tài liệu PDF">
+    <title>T07MediaDetect - Phát hiện PDF đã bị chỉnh sửa</title>
+    <meta name="description" content="Hệ thống T07 - Phân tích và phát hiện ảnh đã bị chỉnh sửa trong tài liệu PDF">
     <link rel="stylesheet" href="{% static 'assets/bootstrap/css/bootstrap.min.css' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'assets/css/style_v2.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/magnify/2.3.3/css/magnify.css"
-          integrity="sha512-JxBFHHd+xyHl++SdVJYCCgxGPJKCTTaqndOl/n12qI73hgj7PuGuYDUcCgtdSHTeXSHCtW4us4Qmv+xwPqKVjQ=="
-          crossorigin="anonymous" referrerpolicy="no-referrer"/>
+        integrity="sha512-JxBFHHd+xyHl++SdVJYCCgxGPJKCTTaqndOl/n12qI73hgj7PuGuYDUcCgtdSHTeXSHCtW4us4Qmv+xwPqKVjQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 
 <body style="padding-top: 80px;">
-<nav class="navbar navbar-dark navbar-expand-lg fixed-top navbar-custom">
-    <div class="container">
-        <a class="navbar-brand" href="{% url 'index' %}">
-            <img src="{% static 'assets/img/logo.png' %}" alt="T07FakeMediaDetect Logo" style="height:40px;">
-            <span style="font-size: 0.95rem;">T07FakeMediaDetect</span>
-        </a>
-        <button data-toggle="collapse" class="navbar-toggler" data-target="#navbarResponsive">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarResponsive">
-            <ul class="nav navbar-nav ml-auto">
-                <li class="nav-item"><a class="nav-link" href="{% url 'image' %}">Ảnh</a></li>
-                <li class="nav-item"><a class="nav-link" href="{% url 'video' %}">Video</a></li>
-                <li class="nav-item"><a class="nav-link active" href="{% url 'pdf' %}">PDF</a></li>
-            </ul>
+    <nav class="navbar navbar-dark navbar-expand-lg fixed-top navbar-custom">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'index' %}">
+                <img src="{% static 'assets/img/logo.png' %}" alt="T07MediaDetect Logo" style="height:40px;">
+                <span style="font-size: 0.95rem;">T07MediaDetect</span>
+            </a>
+            <button data-toggle="collapse" class="navbar-toggler" data-target="#navbarResponsive">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarResponsive">
+                <ul class="nav navbar-nav ml-auto">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'image' %}">Ảnh</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'video' %}">Video</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="{% url 'pdf' %}">PDF</a></li>
+                </ul>
+            </div>
         </div>
-    </div>
-</nav>
+    </nav>
     <div class="t07-section">
         <div class="container">
             <div class="t07-page-header">
-                <h1>📄 Phát hiện Giả mạo PDF</h1>
-                <p class="page-subtitle">Phân tích từng trang PDF để phát hiện ảnh giả mạo trong tài liệu</p>
+                <h1>📄 Phát hiện PDF đã bị chỉnh sửa</h1>
+                <p class="page-subtitle">Phân tích từng trang PDF để phát hiện ảnh đã bị chỉnh sửa trong tài liệu</p>
             </div>
-            
+
             <div class="row">
                 <div class="col-lg-10 mx-auto">
                     <div class="t07-card">
@@ -51,16 +51,19 @@
                             {% csrf_token %}
                             <div class="row mb-3">
                                 <div class="col-md-8 mb-3">
-                                    <label for="input_pdf" style="color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Chọn tệp PDF:</label>
+                                    <label for="input_pdf"
+                                        style="color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">Chọn
+                                        tệp PDF:</label>
                                     <input type="file" id="input_pdf" name="input_pdf" accept=".pdf">
                                 </div>
                                 <div class="col-md-4 mb-3 d-flex align-items-end">
-                                    <button class="btn btn-primary btn-block" type="submit" name="run" value="run" style="padding: 0.875rem; font-weight: 600;">
+                                    <button class="btn btn-primary btn-block" type="submit" name="run" value="run"
+                                        style="padding: 0.875rem; font-weight: 600;">
                                         🔍 Phân tích PDF
                                     </button>
                                 </div>
                             </div>
-                            
+
                             {% if pdf_img %}
                             <div class="mt-4">
                                 <h4>📊 Kết quả Phân tích từng Trang</h4>
@@ -78,26 +81,36 @@
                                             {% for image, res in pdf_img %}
                                             <tr>
                                                 <td class="text-center">
-                                                    <img src="{{ image }}" style="width: 100px; height: auto; border-radius: var(--radius-sm); border: 1px solid var(--border);">
-                                                    <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">Trang {{forloop.counter}}</div>
-                                                    <input type="hidden" name="image_url-{{ forloop.counter }}" value="{{ image }}">
+                                                    <img src="{{ image }}"
+                                                        style="width: 100px; height: auto; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                                                    <div
+                                                        style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">
+                                                        Trang {{forloop.counter}}</div>
+                                                    <input type="hidden" name="image_url-{{ forloop.counter }}"
+                                                        value="{{ image }}">
                                                 </td>
                                                 <td style="vertical-align: middle;">
-                                                    <span style="font-size: 1.1rem; font-weight: 600; 
-                                                        color: {% if res.type == 'Authentic' %}var(--primary-light){% else %}#ef4444{% endif %};">
+                                                    <span
+                                                        style="font-size: 1.1rem; font-weight: 600; 
+                                                        color: {% if res.type == 'Ảnh nguyên bản' %}var(--primary-light){% else %}#ef4444{% endif %};">
                                                         {{ res.type }}
                                                     </span>
                                                 </td>
                                                 <td style="vertical-align: middle;">
                                                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                                        <div style="flex: 1; background: var(--surface-light); height: 8px; border-radius: 4px; overflow: hidden;">
-                                                            <div style="width: {{ res.confidence }}%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-light)); transition: width 0.3s;"></div>
+                                                        <div
+                                                            style="flex: 1; background: var(--surface-light); height: 8px; border-radius: 4px; overflow: hidden;">
+                                                            <div
+                                                                style="width: {{ res.confidence }}%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-light)); transition: width 0.3s;">
+                                                            </div>
                                                         </div>
                                                         <span style="font-weight: 600; color: var(--primary-light);">{{ res.confidence }}%</span>
                                                     </div>
                                                 </td>
                                                 <td style="vertical-align: middle;">
-                                                    <button class="btn btn-primary btn-sm" type="submit" name="passImage" value="{{ forloop.counter }}" style="padding: 0.5rem 1rem;">
+                                                    <button class="btn btn-primary btn-sm" type="submit"
+                                                        name="passImage" value="{{ forloop.counter }}"
+                                                        style="padding: 0.5rem 1rem;">
                                                         📖 Xem chi tiết
                                                     </button>
                                                 </td>
@@ -109,9 +122,10 @@
                             </div>
                             {% endif %}
                         </form>
-                        
+
                         {% if not pdf_img %}
-                        <div class="mt-3" style="padding: 2rem; background: var(--surface-light); border-radius: var(--radius-md); text-align: center; border: 2px dashed var(--border);">
+                        <div class="mt-3"
+                            style="padding: 2rem; background: var(--surface-light); border-radius: var(--radius-md); text-align: center; border: 2px dashed var(--border);">
                             <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
                             <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 0.5rem;">
                                 Chưa có tệp PDF nào được tải lên
@@ -126,8 +140,8 @@
             </div>
         </div>
     </div>
-<script src="{% static 'assets/js/jquery.min.js' %}"></script>
-<script src="{% static 'assets/bootstrap/js/bootstrap.min.js' %}"></script>
+    <script src="{% static 'assets/js/jquery.min.js' %}"></script>
+    <script src="{% static 'assets/bootstrap/js/bootstrap.min.js' %}"></script>
 </body>
 
 </html>

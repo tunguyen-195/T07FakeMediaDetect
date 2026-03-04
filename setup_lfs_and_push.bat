@@ -95,7 +95,7 @@ echo [INFO] Adding all files (now with LFS)...
 git add .
 
 echo [INFO] Creating new commit with LFS...
-git commit -m "Initial commit: T07FakeMediaDetect - AI-powered Image/Video Forgery Detection System" -m "" -m "- Django web application for fake media detection" -m "- 3 AI models: Image ELA-CNN, Video Forgery Detection, Image Segmentation" -m "- Supports both image and video analysis" -m "- Fixed AV1 codec compatibility issues with H.264 conversion" -m "- Comprehensive documentation and setup guides" -m "- Batch scripts for easy installation and management" -m "" -m "Note: Large model files (*.h5, *.hdf5) are stored with Git LFS"
+git commit -m "Initial commit: T07FakeMediaDetect with Git LFS" -m "- Django web application for fake media detection" -m "- 3 AI models stored with Git LFS" -m "- Comprehensive documentation and guides"
 
 if %errorlevel% neq 0 (
     echo [ERROR] Commit failed!
