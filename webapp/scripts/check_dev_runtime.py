@@ -35,6 +35,8 @@ REQUIRED_METADATA_KEYS = [
     "selected_cnn_model_path",
 ]
 
+HDF5_SIGNATURE = b"\x89HDF\r\n\x1a\n"
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate the local dev runtime bundle.")
@@ -91,6 +93,14 @@ def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def file_has_hdf5_signature(path: Path) -> bool:
+    try:
+        with path.open("rb") as f:
+            return f.read(len(HDF5_SIGNATURE)) == HDF5_SIGNATURE
+    except Exception:
+        return False
+
+
 def check_active_release() -> dict:
     issues: list[str] = []
     warnings: list[str] = []
@@ -122,6 +132,13 @@ def check_active_release() -> dict:
         resolved_paths[key] = resolved
         if resolved is None or not resolved.exists():
             issues.append(f"{key} missing: {manifest[key]}")
+
+    cnn_path = resolved_paths.get("cnn_model_path")
+    if cnn_path and cnn_path.exists() and not file_has_hdf5_signature(cnn_path):
+        issues.append(
+            "cnn_model_path is not a valid HDF5 file signature: "
+            f"{manifest['cnn_model_path']}"
+        )
 
     metadata_path = resolved_paths.get("metadata_path")
     if metadata_path and metadata_path.exists():
@@ -186,7 +203,11 @@ def print_runtime_summary(release_result: dict, poppler_path: Path | None) -> No
         print(f"  ERROR: {issue}")
 
     print("[Supporting Files]")
-    print_check("Segmenter weights", SEGMENTER_PATH.exists(), SEGMENTER_PATH.name)
+    segmenter_ok = SEGMENTER_PATH.exists() and file_has_hdf5_signature(SEGMENTER_PATH)
+    segmenter_detail = SEGMENTER_PATH.name
+    if SEGMENTER_PATH.exists() and not segmenter_ok:
+        segmenter_detail += " (invalid HDF5 signature)"
+    print_check("Segmenter weights", segmenter_ok, segmenter_detail)
     if poppler_path is not None:
         print_check("Poppler", True, str(poppler_path))
     else:
@@ -202,7 +223,12 @@ def main() -> int:
     if args.mode == "status":
         print_runtime_summary(release_result, poppler_path)
 
-    required_ok = release_result["ok"] and SEGMENTER_PATH.exists() and poppler_path is not None
+    required_ok = (
+        release_result["ok"]
+        and SEGMENTER_PATH.exists()
+        and file_has_hdf5_signature(SEGMENTER_PATH)
+        and poppler_path is not None
+    )
     if args.mode != "status":
         if required_ok:
             print("Runtime bundle validation: OK")
