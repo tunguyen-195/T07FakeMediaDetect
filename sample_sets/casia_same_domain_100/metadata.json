@@ -1,0 +1,11 @@
+{
+  "dataset_name": "CASIA2",
+  "sample_type": "same_domain",
+  "source": "Kaggle divg07/casia-20-image-tampering-detection-dataset",
+  "seed": 42,
+  "per_class": 50,
+  "class_counts": {
+    "authentic": 50,
+    "forged": 50
+  }
+}

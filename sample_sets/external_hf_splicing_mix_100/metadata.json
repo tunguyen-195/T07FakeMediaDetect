@@ -1,0 +1,12 @@
+{
+  "dataset_name": "lorenzo-morelli/image-splicing-deepfake-mix",
+  "sample_type": "external",
+  "source": "Hugging Face dataset viewer API",
+  "seed": 42,
+  "per_class": 50,
+  "class_counts": {
+    "authentic": 50,
+    "forged": 50
+  },
+  "labeling_method": "caption heuristic"
+}
