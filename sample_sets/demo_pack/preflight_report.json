@@ -1,0 +1,161 @@
+{
+  "active_release": "run_20260306_055001",
+  "demo_manifest": "E:\\Freelance\\Research\\D11_9_2025_Image_fixed_Detect\\Project\\T07FakeMediaDetect\\sample_sets\\demo_pack\\demo_manifest.csv",
+  "image_checks_total": 20,
+  "image_checks_failed": 0,
+  "image_checks": [
+    {
+      "file": "authentic_01.jpg",
+      "expected": "Authentic",
+      "predicted": "Authentic",
+      "confidence_percent": "99.39",
+      "ok": true
+    },
+    {
+      "file": "authentic_02.jpg",
+      "expected": "Authentic",
+      "predicted": "Authentic",
+      "confidence_percent": "99.86",
+      "ok": true
+    },
+    {
+      "file": "authentic_03.jpg",
+      "expected": "Authentic",
+      "predicted": "Authentic",
+      "confidence_percent": "96.27",
+      "ok": true
+    },
+    {
+      "file": "authentic_04.jpg",
+      "expected": "Authentic",
+      "predicted": "Authentic",
+      "confidence_percent": "99.52",
+      "ok": true
+    },
+    {
+      "file": "authentic_05.jpg",
+      "expected": "Authentic",
+      "predicted": "Authentic",
+      "confidence_percent": "95.56",
+      "ok": true
+    },
+    {
+      "file": "authentic_06.jpg",
+      "expected": "Authentic",
+      "predicted": "Authentic",
+      "confidence_percent": "97.76",
+      "ok": true
+    },
+    {
+      "file": "authentic_07.jpg",
+      "expected": "Authentic",
+      "predicted": "Authentic",
+      "confidence_percent": "95.74",
+      "ok": true
+    },
+    {
+      "file": "authentic_08.jpg",
+      "expected": "Authentic",
+      "predicted": "Authentic",
+      "confidence_percent": "93.20",
+      "ok": true
+    },
+    {
+      "file": "authentic_09.jpg",
+      "expected": "Authentic",
+      "predicted": "Authentic",
+      "confidence_percent": "93.11",
+      "ok": true
+    },
+    {
+      "file": "authentic_10.jpg",
+      "expected": "Authentic",
+      "predicted": "Authentic",
+      "confidence_percent": "90.44",
+      "ok": true
+    },
+    {
+      "file": "forged_01.jpg",
+      "expected": "Forged",
+      "predicted": "Forged",
+      "confidence_percent": "91.82",
+      "ok": true
+    },
+    {
+      "file": "forged_02.jpg",
+      "expected": "Forged",
+      "predicted": "Forged",
+      "confidence_percent": "86.93",
+      "ok": true
+    },
+    {
+      "file": "forged_03.jpg",
+      "expected": "Forged",
+      "predicted": "Forged",
+      "confidence_percent": "69.82",
+      "ok": true
+    },
+    {
+      "file": "forged_04.jpg",
+      "expected": "Forged",
+      "predicted": "Forged",
+      "confidence_percent": "73.23",
+      "ok": true
+    },
+    {
+      "file": "forged_05.jpg",
+      "expected": "Forged",
+      "predicted": "Forged",
+      "confidence_percent": "91.73",
+      "ok": true
+    },
+    {
+      "file": "forged_06.jpg",
+      "expected": "Forged",
+      "predicted": "Forged",
+      "confidence_percent": "82.04",
+      "ok": true
+    },
+    {
+      "file": "forged_07.jpg",
+      "expected": "Forged",
+      "predicted": "Forged",
+      "confidence_percent": "73.33",
+      "ok": true
+    },
+    {
+      "file": "forged_08.jpg",
+      "expected": "Forged",
+      "predicted": "Forged",
+      "confidence_percent": "91.79",
+      "ok": true
+    },
+    {
+      "file": "forged_09.jpg",
+      "expected": "Forged",
+      "predicted": "Forged",
+      "confidence_percent": "71.70",
+      "ok": true
+    },
+    {
+      "file": "forged_10.jpg",
+      "expected": "Forged",
+      "predicted": "Forged",
+      "confidence_percent": "93.12",
+      "ok": true
+    }
+  ],
+  "pdf_checks": [
+    {
+      "file": "demo_authentic_pages.pdf",
+      "exists": true,
+      "pages": 3
+    },
+    {
+      "file": "demo_forged_pages.pdf",
+      "exists": true,
+      "pages": 3
+    }
+  ],
+  "overall_ok": true
+}

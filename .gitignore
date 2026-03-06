@@ -147,4 +147,9 @@ webapp/models.rar
 # Poppler binaries (installed via install_poppler.bat)
 webapp/poppler/
 
+# Allow the committed demo runbook while keeping the rest of docs ignored
+!docs/
+docs/*
+!docs/DEMO_RUNBOOK.md
+
 # End of file

@@ -1,0 +1,11 @@
+{
+  "source_manifest": "E:\\Freelance\\Research\\D11_9_2025_Image_fixed_Detect\\Project\\T07FakeMediaDetect\\sample_sets\\casia_same_domain_100\\manifest.csv",
+  "demo_manifest": "E:\\Freelance\\Research\\D11_9_2025_Image_fixed_Detect\\Project\\T07FakeMediaDetect\\sample_sets\\demo_pack\\demo_manifest.csv",
+  "selected_per_class": 10,
+  "class_counts": {
+    "authentic": 10,
+    "forged": 10
+  },
+  "active_release": "run_20260306_055001",
+  "feature_schema_version": "hybrid_v3_casia_columbia"
+}
