@@ -1,7 +1,7 @@
 @echo off
 :: ====================================================================
 :: T07FakeMediaDetect - Status Check Script
-:: Hệ thống phát hiện tệp đa phương tiện giả mạo T07
+:: Hệ thống phát hiện tệp đa phương tiện đã bị chỉnh sửa T07
 :: ====================================================================
 
 COLOR 0B
@@ -35,22 +35,13 @@ if exist ".venv-tf\Scripts\python.exe" (
 )
 echo.
 
-:: Check Model Files
-echo [CHECK 3/5] Model Files:
-if exist "models\proposed_ela_50_casia_fidac.h5" (
-    echo   Image Model: OK
+:: Check Runtime Bundle
+echo [CHECK 3/5] Image/PDF Runtime Bundle:
+if exist ".venv-tf\Scripts\python.exe" (
+    .venv-tf\Scripts\python.exe scripts\check_dev_runtime.py --mode status
 ) else (
-    echo   Image Model: MISSING
-)
-if exist "models\segmenter_weights.h5" (
-    echo   Segmenter Model: OK
-) else (
-    echo   Segmenter Model: MISSING
-)
-if exist "models\forgery_model_me.hdf5" (
-    echo   Video Model: OK
-) else (
-    echo   Video Model: MISSING
+    echo   Status: UNKNOWN
+    echo   Create the virtual environment first with install.bat
 )
 echo.
 

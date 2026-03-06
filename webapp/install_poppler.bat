@@ -3,6 +3,9 @@
 :: Download and setup Poppler for PDF analysis on Windows
 :: ====================================================================
 
+set NO_PAUSE=0
+if /I "%~1"=="--no-pause" set NO_PAUSE=1
+
 echo.
 echo ========================================================
 echo  Poppler Setup for T07FakeMediaDetect
@@ -14,7 +17,7 @@ if exist "poppler\Library\bin\pdfinfo.exe" (
     echo [INFO] Poppler is already installed in project folder.
     echo Path: %cd%\poppler\Library\bin
     echo.
-    pause
+    if "%NO_PAUSE%"=="0" pause
     exit /b 0
 )
 
@@ -29,7 +32,7 @@ if not exist "poppler_temp.zip" (
     echo Please download manually from:
     echo   https://github.com/oschwartz10612/poppler-windows/releases
     echo Extract to: %cd%\poppler\
-    pause
+    if "%NO_PAUSE%"=="0" pause
     exit /b 1
 )
 
@@ -65,4 +68,4 @@ if exist "poppler\Library\bin\pdfinfo.exe" (
 )
 
 echo.
-pause
+if "%NO_PAUSE%"=="0" pause

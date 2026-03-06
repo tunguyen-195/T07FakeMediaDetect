@@ -1,0 +1,10 @@
+{
+  "release_id": "run_20260306_055001",
+  "cnn_model_path": "releases/run_20260306_055001/runtime_compat_proposed_ela_50_casia_columbia.h5",
+  "svm_model_path": "releases/run_20260306_055001/hybrid_svm_model.pkl",
+  "scaler_path": "releases/run_20260306_055001/hybrid_scaler.pkl",
+  "metadata_path": "releases/run_20260306_055001/runtime_hybrid_metadata.json",
+  "metrics_path": "releases/run_20260306_055001/hybrid_holdout_metrics.json",
+  "run_summary_path": "releases/run_20260306_055001/run_summary.json",
+  "activated_at": "2026-03-06T07:15:34.830395+00:00"
+}

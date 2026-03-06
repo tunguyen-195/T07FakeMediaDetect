@@ -259,7 +259,7 @@ source .venv-tf/bin/activate
 
 ```bash
 cd webapp
-pip install -r requirements.txt
+install.bat
 ```
 
 **Dependencies chính:**
@@ -274,17 +274,7 @@ pip install -r requirements.txt
 
 #### 4. Cài đặt Poppler (cho PDF analysis)
 
-**Windows:**
-```bash
-# Option 1: WinGet
-winget install poppler
-
-# Option 2: Chocolatey
-choco install poppler
-
-# Option 3: Scoop
-scoop install poppler
-```
+**Windows dev flow hiện tại:** `install.bat` sẽ tự gọi `install_poppler.bat` nếu Poppler chưa có trong `webapp/poppler/`.
 
 **Linux:**
 ```bash
@@ -298,17 +288,19 @@ brew install poppler
 
 #### 5. Kiểm tra AI Models
 
-Models đã được cài đặt sẵn trong dự án:
+Bundle dev cho image/PDF đã được đóng gói sẵn trong dự án:
 
-**Image Model (37.5 MB)** ✅
-- File: `proposed_ela_50_casia_fidac.h5`
-- Location: `webapp/models/`
-- Purpose: Phát hiện ảnh giả mạo
+**Active image release** ✅
+- File chính: `webapp/models/active_release.json`
+- CNN runtime: `webapp/models/releases/run_20260306_055001/runtime_compat_proposed_ela_50_casia_columbia.h5`
+- Hybrid runtime: `hybrid_svm_model.pkl`, `hybrid_scaler.pkl`, `runtime_hybrid_metadata.json`
+- Purpose: Phát hiện ảnh giả mạo và phân tích PDF
 
-**Video Model (272 MB)** ✅
+**Video Model (272 MB)** optional
 - File: `forgery_model_me.hdf5`
 - Location: `webapp/models/`
 - Purpose: Phát hiện video giả mạo
+- Note: copy thủ công nếu máy dev cần dùng tính năng video
 
 **Segmenter Weights (9.1 MB)** ✅
 - File: `segmenter_weights.h5`
@@ -318,8 +310,7 @@ Models đã được cài đặt sẵn trong dự án:
 **Xác minh models:**
 ```cmd
 cd webapp
-dir models\*.h5
-dir models\*.hdf5
+status.bat
 ```
 
 ### **Khởi chạy ứng dụng**

@@ -39,7 +39,8 @@ A modern, professional web application for detecting image and video forgeries u
 ## 🚀 Quick Start
 
 ### **Prerequisites**
-- Python 3.8 or higher
+- Windows 10/11
+- Python 3.9
 - pip package manager
 - (Optional) CUDA-compatible GPU for faster processing
 
@@ -48,43 +49,33 @@ A modern, professional web application for detecting image and video forgeries u
 1. **Clone the repository**
 ```bash
 git clone https://github.com/yourusername/T07FakeMediaDetect.git
-cd T07FakeMediaDetect/T07FakeMediaDetect
+cd T07FakeMediaDetect/webapp
 ```
 
-2. **Install dependencies**
+2. **Run the Windows setup script**
 ```bash
-pip install -r requirements.txt
+install.bat
 ```
 
-3. **Download AI models**
+What `install.bat` does for the Windows dev flow:
+- creates `.venv-tf`
+- installs `requirements.txt`
+- auto-downloads Poppler if missing
+- validates the bundled image/PDF release in `models/active_release.json`
+- runs `manage.py migrate`
 
-Download the pre-trained models and place them in the `models/` folder:
-- [Image Detection Model](https://drive.google.com/drive/folders/1B4ODeK_QQ6XMFo6i6EEup1nZC6PllVfu)
-- [Video Detection Model](https://drive.google.com/drive/folders/1irYZbRnr4Y7jKieSyhjxHxwk43oSMqh-)
+3. **Optional video setup**
+- If you need video analysis, manually copy `forgery_model_me.hdf5` into `models\`.
+- Image and PDF analysis are already bundled in git and do not need extra model downloads.
 
-```bash
-# Create models directory if it doesn't exist
-python -c "import os; os.makedirs('models', exist_ok=True)"
-```
-
-4. **Initialize database**
-```bash
-python manage.py migrate
-```
-
-5. **Run the application**
+4. **Run the application**
 
 **Windows:**
 ```bash
 start.bat
 ```
 
-**Linux/Mac:**
-```bash
-python manage.py runserver 0.0.0.0:8001
-```
-
-6. **Access the application**
+5. **Access the application**
 
 Open your browser and navigate to: `http://127.0.0.1:8001`
 
@@ -186,7 +177,7 @@ T07FakeMediaDetect/
 - **Image Analysis**: ~2-5 seconds per image
 - **Video Analysis**: ~10-30 seconds (depends on duration and FPS)
 - **PDF Analysis**: ~5-15 seconds (depends on embedded images)
-- **Supported Image Formats**: JPG, JPEG, PNG
+- **Supported Image Formats**: JPG, JPEG, PNG (pipeline is JPEG-centric because ELA resaves to JPEG)
 - **Supported Video Formats**: MP4, AVI, MOV
 - **Max Upload Size**: 100MB (configurable)
 

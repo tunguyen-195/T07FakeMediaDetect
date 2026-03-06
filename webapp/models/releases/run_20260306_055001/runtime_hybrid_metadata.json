@@ -1,0 +1,96 @@
+{
+  "feature_schema_version": "hybrid_v3_casia_columbia",
+  "cnn_score_semantics": "p_forged = 1 - p_authentic",
+  "benford_feature_order": [
+    "benford_digit_1",
+    "benford_digit_2",
+    "benford_digit_3",
+    "benford_digit_4",
+    "benford_digit_5",
+    "benford_digit_6",
+    "benford_digit_7",
+    "benford_digit_8",
+    "benford_digit_9",
+    "benford_chi_square_scaled",
+    "benford_ks",
+    "benford_mad",
+    "benford_mse"
+  ],
+  "hybrid_feature_order": [
+    "cnn_p_forged",
+    "benford_digit_1",
+    "benford_digit_2",
+    "benford_digit_3",
+    "benford_digit_4",
+    "benford_digit_5",
+    "benford_digit_6",
+    "benford_digit_7",
+    "benford_digit_8",
+    "benford_digit_9",
+    "benford_chi_square_scaled",
+    "benford_ks",
+    "benford_mad",
+    "benford_mse"
+  ],
+  "label_mapping": {
+    "authentic": 0,
+    "forged": 1
+  },
+  "datasets_used": [
+    "CASIA",
+    "COLUMBIA"
+  ],
+  "split_seed": 42,
+  "split_manifest_path": "/content/drive/MyDrive/T07_colab/artifacts/auto_ifake_casia_columbia/run_20260306_055001/manifest_split.csv",
+  "holdout_manifest_path": "/content/drive/MyDrive/T07_colab/artifacts/auto_ifake_casia_columbia/run_20260306_055001/holdout_manifest.csv",
+  "selected_cnn_name": "retrained_ifake_casia_columbia",
+  "selected_cnn_model_path": "releases/run_20260306_055001/runtime_compat_proposed_ela_50_casia_columbia.h5",
+  "metrics_selected_cnn_holdout": {
+    "accuracy": 0.8463042628079781,
+    "f1_forged": 0.8174640037157455,
+    "precision_forged": 0.8058608058608059,
+    "recall_forged": 0.8294062205466541,
+    "roc_auc_forged": 0.903024464862631,
+    "confusion_matrix_labels_0auth_1forged": [
+      [
+        1284,
+        212
+      ],
+      [
+        181,
+        880
+      ]
+    ]
+  },
+  "metrics_hybrid_holdout": {
+    "accuracy": 0.8936253421978881,
+    "f1_forged": 0.8772563176895307,
+    "precision_forged": 0.8415584415584415,
+    "recall_forged": 0.9161168708765316,
+    "roc_auc_forged": 0.956765008291038,
+    "confusion_matrix_labels_0auth_1forged": [
+      [
+        1313,
+        183
+      ],
+      [
+        89,
+        972
+      ]
+    ],
+    "svm_best_params": {
+      "C": 20,
+      "class_weight": "balanced",
+      "gamma": 0.1
+    },
+    "svm_best_cv_score_f1": 0.8800290909141031
+  },
+  "train_environment": {
+    "python": "3.12.12",
+    "numpy": "2.0.2",
+    "tensorflow": "2.19.0",
+    "scikit_learn": "1.6.1",
+    "joblib": "1.5.3"
+  },
+  "benford_chi_scale": 1000.0
+}

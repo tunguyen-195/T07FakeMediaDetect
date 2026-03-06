@@ -126,6 +126,23 @@ Datasets/
 *.hdf5
 *.h5
 *.pkl
+!webapp/models/segmenter_weights.h5
+!webapp/models/active_release.json
+webapp/models/releases/*
+!webapp/models/releases/run_20260306_055001/
+webapp/models/releases/run_20260306_055001/*
+!webapp/models/releases/run_20260306_055001/runtime_compat_proposed_ela_50_casia_columbia.h5
+!webapp/models/releases/run_20260306_055001/hybrid_svm_model.pkl
+!webapp/models/releases/run_20260306_055001/hybrid_scaler.pkl
+!webapp/models/releases/run_20260306_055001/runtime_hybrid_metadata.json
+!webapp/models/releases/run_20260306_055001/hybrid_holdout_metrics.json
+!webapp/models/releases/run_20260306_055001/run_summary.json
+
+# Keep dev runtime bundle lean
+webapp/models/archive/
+webapp/models/old model/
+webapp/models/*_artifacts.zip
+webapp/models.rar
 
 # Poppler binaries (installed via install_poppler.bat)
 webapp/poppler/

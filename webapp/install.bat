@@ -1,7 +1,7 @@
 @echo off
 :: ====================================================================
 :: T07FakeMediaDetect - Installation Script
-:: Hệ thống phát hiện tệp đa phương tiện giả mạo T07
+:: Hệ thống phát hiện tệp đa phương tiện đã bị chỉnh sửa T07
 :: Yêu cầu: Python 3.9 (TensorFlow 2.6 không hỗ trợ Python 3.10+)
 :: ====================================================================
 
@@ -113,25 +113,50 @@ echo [INFO] Checking installed packages...
 pip list
 
 echo.
+echo [INFO] Ensuring Poppler is available for PDF analysis...
+if not exist "poppler\Library\bin\pdfinfo.exe" (
+    call install_poppler.bat --no-pause
+    if %errorlevel% neq 0 (
+        echo.
+        echo [ERROR] Poppler setup failed!
+        echo PDF analysis will not work until Poppler is installed.
+        pause
+        exit /b 1
+    )
+) else (
+    echo [INFO] Poppler already present in project folder.
+)
+
+echo.
+echo [INFO] Validating bundled image/PDF runtime...
+.venv-tf\Scripts\python.exe scripts\check_dev_runtime.py --mode install
+if %errorlevel% neq 0 (
+    echo.
+    echo [ERROR] Active image/PDF runtime bundle is incomplete.
+    echo Expected active release files under models\releases\run_20260306_055001\
+    pause
+    exit /b 1
+)
+
+echo.
+echo [INFO] Running database migrations...
+.venv-tf\Scripts\python.exe manage.py migrate
+if %errorlevel% neq 0 (
+    echo.
+    echo [ERROR] Database migration failed!
+    pause
+    exit /b 1
+)
+
+echo.
 echo ========================================================
 echo  Installation completed successfully!
 echo ========================================================
 echo.
 echo Next steps:
-echo 1. Copy model files into the 'models' folder:
-echo    - proposed_ela_50_casia_fidac.h5
-echo    - segmenter_weights.h5
-echo    - forgery_model_me.hdf5
-echo    - hybrid_svm_model.pkl
-echo    - hybrid_scaler.pkl
-echo.
-echo 2. Copy .env.example to .env:
-echo    copy .env.example .env
-echo.
-echo 3. Run database migration:
-echo    .venv-tf\Scripts\python.exe manage.py migrate
-echo.
-echo 4. Run 'start.bat' to launch the server
+echo 1. Run 'start.bat' to launch the server
+echo 2. Optional: copy forgery_model_me.hdf5 into models\ if you want video analysis
+echo 3. Optional: copy .env.example to .env if your local setup needs it
 echo.
 echo ========================================================
 echo.

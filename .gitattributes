@@ -1,2 +1,4 @@
 *.hdf5 filter=lfs diff=lfs merge=lfs -text
 *.h5 filter=lfs diff=lfs merge=lfs -text
+webapp/models/segmenter_weights.h5 -filter -diff -merge text
+webapp/models/releases/run_20260306_055001/runtime_compat_proposed_ela_50_casia_columbia.h5 -filter -diff -merge text
