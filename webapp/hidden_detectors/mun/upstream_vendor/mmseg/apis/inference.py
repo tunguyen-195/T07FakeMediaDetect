@@ -1,7 +1,7 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import warnings
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import mmcv
 import numpy as np
@@ -11,10 +11,10 @@ from mmengine.registry import init_default_scope
 from mmengine.runner import load_checkpoint
 from mmengine.utils import mkdir_or_exist
 
-from mmseg.models import BaseSegmentor
 from mmseg.registry import MODELS
 from mmseg.structures import SegDataSample
-from mmseg.utils import SampleList, dataset_aliases, get_classes, get_palette
+from mmseg.utils.class_names import dataset_aliases, get_classes, get_palette
+from mmseg.utils.typing_utils import SampleList
 from mmseg.visualization import SegLocalVisualizer
 from .utils import ImageType, _preprare_data
 
@@ -94,7 +94,7 @@ def init_model(config: Union[str, Path, Config],
     return model
 
 
-def inference_model(model: BaseSegmentor,
+def inference_model(model: Any,
                     img: ImageType) -> Union[SegDataSample, SampleList]:
     """Inference image(s) with the segmentor.
 
@@ -118,7 +118,7 @@ def inference_model(model: BaseSegmentor,
     return results if is_batch else results[0]
 
 
-def show_result_pyplot(model: BaseSegmentor,
+def show_result_pyplot(model: Any,
                        img: Union[str, np.ndarray],
                        result: SegDataSample,
                        opacity: float = 0.5,

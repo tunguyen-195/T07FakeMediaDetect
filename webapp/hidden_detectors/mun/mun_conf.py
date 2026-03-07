@@ -1,3 +1,16 @@
+custom_imports = dict(
+    imports=[
+        'mmseg.models.data_preprocessor',
+        'mmseg.datasets.transforms.transforms',
+        'mmseg.datasets.transforms.formatting',
+        'mmseg.models.segmentors.npp',
+        'mmseg.models.decode_heads.nu_head',
+        'mmseg.models.losses.iou_loss',
+        'mmpretrain.models.backbones.convnext',
+    ],
+    allow_failed_imports=False,
+)
+
 model = dict(
     backbone=dict(
         arch='base',

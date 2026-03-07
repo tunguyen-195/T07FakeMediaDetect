@@ -9,8 +9,9 @@ from torch import Tensor
 import torch
 
 from mmseg.registry import MODELS
-from mmseg.utils import (ConfigType, OptConfigType, OptMultiConfig,
-                         OptSampleList, SampleList, add_prefix)
+from mmseg.utils.misc import add_prefix
+from mmseg.utils.typing_utils import (ConfigType, OptConfigType, OptMultiConfig,
+                                      OptSampleList, SampleList)
 from .base import BaseSegmentor
 import copy
 from .mypro.imgnorm import ImgNorm

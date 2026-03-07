@@ -7,11 +7,8 @@ from mmseg.registry import MODELS
 from ..utils import resize
 from .decode_head import BaseDecodeHead
 
-from mmdet.models.layers.csp_layer import \
-    DarknetBottleneck as MMDET_DarknetBottleneck
-from mmdet.utils import ConfigType, OptConfigType, OptMultiConfig
 from mmengine.utils import digit_version
-from typing import Sequence
+from typing import Any, Optional, Sequence
 from mmcv.cnn import (ConvModule, DepthwiseSeparableConvModule)
 from mmengine.model import BaseModule
 
@@ -31,7 +28,7 @@ else:
 
     MODELS.register_module(module=SiLU, name='SiLU')
 
-class DarknetBottleneck(MMDET_DarknetBottleneck):
+class DarknetBottleneck(BaseModule):
 
     def __init__(self,
                  in_channels: int,
@@ -41,12 +38,12 @@ class DarknetBottleneck(MMDET_DarknetBottleneck):
                  padding: Sequence[int] = (0, 1),
                  add_identity: bool = True,
                  use_depthwise: bool = False,
-                 conv_cfg: OptConfigType = None,
-                 norm_cfg: ConfigType = dict(
+                 conv_cfg: Optional[dict] = None,
+                 norm_cfg: Optional[dict] = dict(
                      type='BN', momentum=0.03, eps=0.001),
-                 act_cfg: ConfigType = dict(type='SiLU', inplace=True),
-                 init_cfg: OptMultiConfig = None) -> None:
-        super().__init__(in_channels, out_channels, init_cfg=init_cfg)
+                 act_cfg: Optional[dict] = dict(type='SiLU', inplace=True),
+                 init_cfg: Optional[Any] = None) -> None:
+        super().__init__(init_cfg=init_cfg)
         hidden_channels = int(out_channels * expansion)
         conv = DepthwiseSeparableConvModule if use_depthwise else ConvModule
         assert isinstance(kernel_size, Sequence) and len(kernel_size) == 2
@@ -70,6 +67,14 @@ class DarknetBottleneck(MMDET_DarknetBottleneck):
             act_cfg=act_cfg)
         self.add_identity = \
             add_identity and in_channels == out_channels
+
+    def forward(self, x: Tensor) -> Tensor:
+        identity = x
+        out = self.conv1(x)
+        out = self.conv2(out)
+        if self.add_identity:
+            return out + identity
+        return out
         
 class CSPLayerWithTwoConv(BaseModule):
 
@@ -80,10 +85,10 @@ class CSPLayerWithTwoConv(BaseModule):
             expand_ratio: float = 0.5,
             num_blocks: int = 1,
             add_identity: bool = True,  # shortcut
-            conv_cfg: OptConfigType = None,
-            norm_cfg: ConfigType = dict(type='BN', momentum=0.03, eps=0.001),
-            act_cfg: ConfigType = dict(type='SiLU', inplace=True),
-            init_cfg: OptMultiConfig = None) -> None:
+            conv_cfg: Optional[dict] = None,
+            norm_cfg: Optional[dict] = dict(type='BN', momentum=0.03, eps=0.001),
+            act_cfg: Optional[dict] = dict(type='SiLU', inplace=True),
+            init_cfg: Optional[Any] = None) -> None:
         super().__init__(init_cfg=init_cfg)
 
         self.mid_channels = int(out_channels * expand_ratio)
