@@ -254,6 +254,10 @@ def build_review_detail(result_label, leaning_label=None, leaning_confidence=Non
     return '\u1ea2nh n\u00e0y c\u1ea7n ki\u1ec3m tra th\u00eam do hai detector ch\u01b0a \u0111\u1ed3ng thu\u1eadn ho\u00e0n to\u00e0n.'
 
 
+def hidden_fail_fast_enabled():
+    return str(os.environ.get("T07_MUN_FAIL_FAST", "0")).strip() == "1"
+
+
 #pdf2image for loop
 def runPdf2image(request):
     global filePdfUrl, inputPdfUrl, fileurl, inputImageUrl
@@ -330,8 +334,20 @@ def runPdf2image(request):
                 imagefileurl = os.path.join(os.getcwd(), 'media', pageName)
                 
                 # Analyze each page
-                res = FID().predict_result_structured(imagefileurl, source_type="pdf_page", require_hidden=True)
+                res = FID().predict_result_structured(
+                    imagefileurl,
+                    source_type="pdf_page",
+                    require_hidden=hidden_fail_fast_enabled(),
+                )
                 friendly_type = to_friendly_image_label(res['final_label'], res.get('leaning_label'))
+                hidden_warning = ''
+                if res.get('hidden_available') is False and res.get('hidden_error'):
+                    hidden_warning = f"MUN unavailable: {res.get('hidden_error')}"
+                base_detail = build_review_detail(
+                    res['final_label'],
+                    res.get('leaning_label'),
+                    res.get('leaning_confidence'),
+                )
                 result_data = {
                     'type': friendly_type,
                     'confidence': f"{res['final_confidence']:0.2f}",
@@ -339,10 +355,10 @@ def runPdf2image(request):
                     'final_label': res['final_label'],
                     'leaning_label': res.get('leaning_label'),
                     'leaning_confidence': f"{res.get('leaning_confidence', 0):0.2f}",
-                    'detail': build_review_detail(
-                        res['final_label'],
-                        res.get('leaning_label'),
-                        res.get('leaning_confidence'),
+                    'detail': (
+                        f"{base_detail} {hidden_warning}".strip()
+                        if hidden_warning else
+                        base_detail
                     ),
                 }
                 
@@ -435,7 +451,7 @@ def runAnalysis(request):
                 res = FID().predict_result_structured(
                     decoded_path,
                     source_type="image",
-                    require_hidden=True,
+                    require_hidden=hidden_fail_fast_enabled(),
                 )
             except Exception as e:
                 safe_print(f"[ERROR] Image analysis failed: {str(e)}")
@@ -453,6 +469,14 @@ def runAnalysis(request):
                     },
                 )
             friendly_type = to_friendly_image_label(res['final_label'], res.get('leaning_label'))
+            hidden_warning = ''
+            if res.get('hidden_available') is False and res.get('hidden_error'):
+                hidden_warning = f"MUN unavailable: {res.get('hidden_error')}"
+            base_detail = build_review_detail(
+                res['final_label'],
+                res.get('leaning_label'),
+                res.get('leaning_confidence'),
+            )
             
             result = {
                 'type': friendly_type,
@@ -461,10 +485,10 @@ def runAnalysis(request):
                 'final_label': res['final_label'],
                 'leaning_label': res.get('leaning_label'),
                 'leaning_confidence': f"{res.get('leaning_confidence', 0):0.2f}",
-                'detail': build_review_detail(
-                    res['final_label'],
-                    res.get('leaning_label'),
-                    res.get('leaning_confidence'),
+                'detail': (
+                    f"{base_detail} {hidden_warning}".strip()
+                    if hidden_warning else
+                    base_detail
                 ),
             }
             

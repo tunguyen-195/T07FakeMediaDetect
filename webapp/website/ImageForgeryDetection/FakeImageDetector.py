@@ -630,12 +630,16 @@ class FID:
         safe_print(f"Primary detector mode: {PRIMARY_DETECTOR_MODE}")
         current_result = self._run_primary_detector(fname, source_type=source_type)
         request_id = create_request_id()
+        strict_timeout = float(os.environ.get("T07_HIDDEN_DETECTOR_TIMEOUT_STRICT", "180"))
+        optional_timeout = float(os.environ.get("T07_HIDDEN_DETECTOR_TIMEOUT_OPTIONAL", "30"))
+        hidden_timeout = strict_timeout if require_hidden else optional_timeout
 
         try:
             hidden_result = predict_hidden_detector(
                 fname,
                 source_type=source_type,
                 request_id=request_id,
+                timeout=hidden_timeout,
             )
             fused = fuse_detector_votes(
                 current_result["score_forged"],
