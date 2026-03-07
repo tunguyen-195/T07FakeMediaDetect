@@ -503,6 +503,17 @@ def runAnalysis(request):
                               'metadata': infoDict.items()
                           })
 
+    # Handle direct GET /runAnalysis (or POST without "run") safely.
+    return render(
+        request,
+        "image.html",
+        {
+            'input_image': inputImageUrl or inputImage or '',
+            'input_image_name': get_display_image_name(fileurl, inputImageUrl or inputImage or ''),
+            'metadata': infoDict.items(),
+        },
+    )
+
 
 def runVideoAnalysis(request):
     # Use session instead of global variables (more reliable)
