@@ -1,0 +1,10 @@
+{
+  "release_id": "run_20260307_083320",
+  "model_name": "BenfordRichSVM",
+  "version": "benford_rich_v1",
+  "sidecar": {
+    "host": "127.0.0.1",
+    "port": 8012,
+    "timeout_seconds": 30
+  }
+}

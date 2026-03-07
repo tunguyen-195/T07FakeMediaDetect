@@ -7,7 +7,7 @@ title T07FakeMediaDetect - Installation
 echo.
 echo ========================================================
 echo  T07FakeMediaDetect - Installation Setup
-echo  Dev runtime for image, PDF, and hidden MUN detector
+echo  Dev runtime for image, PDF, BenfordRich, and hidden MUN detector
 echo ========================================================
 echo.
 
@@ -48,11 +48,12 @@ echo.
 
 if exist ".venv-tf" (
     echo [INFO] Virtual environment already exists.
-    choice /C YN /M "Recreate .venv-tf and .venv-mun"
+    choice /C YN /M "Recreate .venv-tf, .venv-benford, and .venv-mun"
     if errorlevel 2 goto :skip_venv
     if errorlevel 1 (
         echo [INFO] Removing old virtual environments...
         if exist ".venv-tf" rmdir /s /q .venv-tf
+        if exist ".venv-benford" rmdir /s /q .venv-benford
         if exist ".venv-mun" rmdir /s /q .venv-mun
     )
 )
@@ -113,6 +114,15 @@ if %errorlevel% neq 0 (
 )
 
 echo.
+echo [INFO] Installing BenfordRich detector runtime...
+.venv-tf\Scripts\python.exe scripts\manage_benford_rich_detector.py install
+if %errorlevel% neq 0 (
+    echo [WARNING] BenfordRich detector installation failed.
+    echo BenfordRich is currently experimental and will not block the default app runtime.
+    echo Check the committed BenfordRich artifacts and Python package install logs later.
+)
+
+echo.
 echo [INFO] Installing hidden MUN detector runtime...
 .venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py install
 if %errorlevel% neq 0 (
@@ -137,8 +147,8 @@ echo  Installation completed successfully
 echo ========================================================
 echo.
 echo Next steps:
-echo   1. Run start.bat to launch Django and the hidden detector
+echo   1. Run start.bat to launch Django, BenfordRich, and the hidden detector
 echo   2. Optional: copy forgery_model_me.hdf5 into models\ for video analysis
-echo   3. Run status.bat to verify both runtimes before demo
+echo   3. Run status.bat to verify all runtimes before demo
 echo.
 pause

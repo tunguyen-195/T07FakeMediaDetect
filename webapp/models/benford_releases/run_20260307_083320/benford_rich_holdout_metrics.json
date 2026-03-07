@@ -1,0 +1,27 @@
+{
+  "accuracy": 0.906140007821666,
+  "precision_forged": 0.89207258834766,
+  "recall_forged": 0.8803016022620169,
+  "f1_forged": 0.8861480075901328,
+  "roc_auc_forged": 0.9600978040089311,
+  "confusion_matrix_labels_0auth_1forged": [
+    [
+      1383,
+      113
+    ],
+    [
+      127,
+      934
+    ]
+  ],
+  "svm_best_params": {
+    "C": 50,
+    "class_weight": "balanced",
+    "gamma": 0.01
+  },
+  "svm_best_cv_score_f1": 0.8770529586245022,
+  "prediction_unique_labels": [
+    0,
+    1
+  ]
+}

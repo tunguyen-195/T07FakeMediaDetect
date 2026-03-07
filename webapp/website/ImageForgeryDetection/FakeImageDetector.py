@@ -27,6 +27,9 @@ from website.ImageForgeryDetection.fusion import (
     build_current_only_result,
     fuse_detector_votes,
 )
+from website.ImageForgeryDetection.benford_rich_client import (
+    predict_benford_rich,
+)
 from website.ImageForgeryDetection.hidden_detector_client import (
     create_request_id,
     predict_hidden_detector,
@@ -104,6 +107,7 @@ DEFAULT_SVM_PATH = os.path.join(MODELS_ROOT, "hybrid_svm_model.pkl")
 DEFAULT_SCALER_PATH = os.path.join(MODELS_ROOT, "hybrid_scaler.pkl")
 DEFAULT_METADATA_PATH = os.path.join(MODELS_ROOT, "hybrid_metadata.json")
 ACTIVE_RELEASE_PATH = os.path.join(MODELS_ROOT, "active_release.json")
+USE_BENFORD_RICH_PRIMARY = os.environ.get("T07_USE_BENFORD_RICH_PRIMARY", "0") == "1"
 DEFAULT_LEGACY_ARTIFACTS = {
     "release_id": "legacy_canonical",
     "bundle_source": "legacy",
@@ -243,7 +247,7 @@ class FID:
         )
         return p_authentic, p_forged
 
-    def _run_current_detector(self, fname):
+    def _run_legacy_current_detector(self, fname):
         active_manifest = self._get_preferred_artifact_manifest()
         runtime_manifest = active_manifest
 
@@ -334,6 +338,65 @@ class FID:
         prediction = "Forged" if p_authentic <= 0.5 else "Authentic"
         confidence = (1.0 - p_authentic) if prediction == "Forged" else p_authentic
         print(f"CNN Result: {prediction} ({confidence * 100:0.2f}%)")
+        return {
+            "score_forged": float(p_forged),
+            "label": prediction,
+            "confidence": round(confidence * 100.0, 2),
+            "source": "cnn_only",
+            "release_id": runtime_manifest["release_id"],
+        }
+
+    def _run_benford_rich_detector(self, fname, source_type="image"):
+        response = predict_benford_rich(fname, source_type=source_type)
+        print(
+            f"BenfordRich bundle={response['release_id']} "
+            f"schema={response['feature_schema_version']} "
+            f"width={response['feature_width']}"
+        )
+        print(f"BenfordRich Prob (Forged): {response['forged_score']:.6f}")
+        print(
+            f"BenfordRich Result: {response['label']} "
+            f"({response['confidence']:.2f}%)"
+        )
+        return {
+            "score_forged": float(response["forged_score"]),
+            "label": response["label"],
+            "confidence": float(response["confidence"]),
+            "source": "benford_rich",
+            "release_id": response["release_id"],
+            "feature_schema_version": response["feature_schema_version"],
+            "feature_width": int(response["feature_width"]),
+        }
+
+    def _run_current_detector(self, fname, source_type="image"):
+        if not USE_BENFORD_RICH_PRIMARY:
+            return self._run_legacy_current_detector(fname)
+        try:
+            print("=== RUNNING BENFORDRICH PRIMARY DETECTOR ===")
+            return self._run_benford_rich_detector(fname, source_type=source_type)
+        except Exception as e:
+            print(
+                f"BenfordRich detector unavailable: {e}. "
+                "Falling back to legacy CNN+SVM detector."
+            )
+            legacy = self._run_legacy_current_detector(fname)
+            legacy["source"] = f"legacy_{legacy['source']}"
+            return legacy
+
+    def _run_cnn_only_detector(self, fname):
+        runtime_manifest = self._get_preferred_artifact_manifest()
+        try:
+            p_authentic, p_forged = self._run_cnn_inference(fname, runtime_manifest)
+        except Exception as e:
+            print(
+                f"Preferred CNN bundle failed for CNN-only path: "
+                f"{runtime_manifest['release_id']} ({e}). Trying legacy runtime."
+            )
+            runtime_manifest = self._get_legacy_artifact_manifest()
+            p_authentic, p_forged = self._run_cnn_inference(fname, runtime_manifest)
+
+        prediction = "Forged" if p_authentic <= 0.5 else "Authentic"
+        confidence = (1.0 - p_authentic) if prediction == "Forged" else p_authentic
         return {
             "score_forged": float(p_forged),
             "label": prediction,
@@ -506,7 +569,7 @@ class FID:
 
     def predict_result_structured(self, fname, source_type="image", require_hidden=True):
         print("=== PREDICTING RESULT ===")
-        current_result = self._run_current_detector(fname)
+        current_result = self._run_current_detector(fname, source_type=source_type)
         request_id = create_request_id()
 
         try:
@@ -543,6 +606,15 @@ class FID:
             fallback["current_release_id"] = current_result["release_id"]
             fallback["hidden_error"] = str(hidden_e)
             return fallback
+
+    def predict_benford_rich_structured(self, fname, source_type="image"):
+        return self._run_benford_rich_detector(fname, source_type=source_type)
+
+    def predict_legacy_current_structured(self, fname):
+        return self._run_legacy_current_detector(fname)
+
+    def predict_cnn_only_structured(self, fname):
+        return self._run_cnn_only_detector(fname)
 
     def predict_result(self, fname):
         structured = self.predict_result_structured(

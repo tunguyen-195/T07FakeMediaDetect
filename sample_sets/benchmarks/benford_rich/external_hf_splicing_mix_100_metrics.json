@@ -1,0 +1,86 @@
+{
+  "current_cnn_only": {
+    "accuracy": 0.6,
+    "precision_forged": 0.6041666666666666,
+    "recall_forged": 0.58,
+    "f1_forged": 0.5918367346938774,
+    "roc_auc_forged": 0.6128,
+    "confusion_matrix_labels_0auth_1forged": [
+      [
+        31,
+        19
+      ],
+      [
+        21,
+        29
+      ]
+    ],
+    "prediction_unique_labels": [
+      0,
+      1
+    ]
+  },
+  "current_hybrid": {
+    "accuracy": 0.51,
+    "precision_forged": 0.5128205128205128,
+    "recall_forged": 0.4,
+    "f1_forged": 0.449438202247191,
+    "roc_auc_forged": 0.5568000000000001,
+    "confusion_matrix_labels_0auth_1forged": [
+      [
+        31,
+        19
+      ],
+      [
+        30,
+        20
+      ]
+    ],
+    "prediction_unique_labels": [
+      0,
+      1
+    ]
+  },
+  "benford_rich_only": {
+    "accuracy": 0.49,
+    "precision_forged": 0.4444444444444444,
+    "recall_forged": 0.08,
+    "f1_forged": 0.13559322033898308,
+    "roc_auc_forged": 0.4452,
+    "confusion_matrix_labels_0auth_1forged": [
+      [
+        45,
+        5
+      ],
+      [
+        46,
+        4
+      ]
+    ],
+    "prediction_unique_labels": [
+      0,
+      1
+    ]
+  },
+  "benford_rich_mun_fused": {
+    "accuracy": 0.51,
+    "precision_forged": 0.5333333333333333,
+    "recall_forged": 0.16,
+    "f1_forged": 0.24615384615384614,
+    "roc_auc_forged": 0.6060000000000001,
+    "confusion_matrix_labels_0auth_1forged": [
+      [
+        43,
+        7
+      ],
+      [
+        42,
+        8
+      ]
+    ],
+    "prediction_unique_labels": [
+      0,
+      1
+    ]
+  }
+}

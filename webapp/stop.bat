@@ -11,6 +11,10 @@ echo ========================================================
 echo.
 
 if exist ".venv-tf\Scripts\python.exe" (
+    echo [INFO] Stopping BenfordRich detector...
+    .venv-tf\Scripts\python.exe scripts\manage_benford_rich_detector.py stop
+    echo.
+
     echo [INFO] Stopping hidden MUN detector...
     .venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py stop
     echo.

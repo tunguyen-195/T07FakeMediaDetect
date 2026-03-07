@@ -1,0 +1,8 @@
+{
+  "release_id": "run_20260307_083320",
+  "model_path": "benford_releases/run_20260307_083320/svm_benford_rich.pkl",
+  "scaler_path": "benford_releases/run_20260307_083320/scaler_benford_rich.pkl",
+  "metadata_path": "benford_releases/run_20260307_083320/benford_rich_metadata.json",
+  "metrics_path": "benford_releases/run_20260307_083320/benford_rich_holdout_metrics.json",
+  "activated_at": "2026-03-07T08:33:20+07:00"
+}

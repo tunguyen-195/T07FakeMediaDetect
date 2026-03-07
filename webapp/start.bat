@@ -7,7 +7,7 @@ title T07FakeMediaDetect - Start
 echo.
 echo ========================================================
 echo  T07FakeMediaDetect - Start
-echo  Django + active image/PDF bundle + hidden MUN detector
+echo  Django + active image/PDF bundle + BenfordRich + hidden MUN detector
 echo ========================================================
 echo.
 
@@ -50,6 +50,14 @@ if %errorlevel% neq 0 (
 )
 
 echo.
+echo [INFO] Starting BenfordRich detector...
+.venv-tf\Scripts\python.exe scripts\manage_benford_rich_detector.py start
+if %errorlevel% neq 0 (
+    echo [WARNING] BenfordRich detector failed to start.
+    echo BenfordRich is experimental and the default app runtime will continue without it.
+)
+
+echo.
 echo [INFO] Starting hidden MUN detector...
 .venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py start
 if %errorlevel% neq 0 (
@@ -71,6 +79,8 @@ echo.
 echo Server URLs:
 echo   - http://127.0.0.1:8001/
 echo   - http://localhost:8001/
+echo BenfordRich detector health:
+echo   - http://127.0.0.1:8012/health
 echo Hidden detector health:
 echo   - http://127.0.0.1:8011/health
 echo.

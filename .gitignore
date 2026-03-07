@@ -28,6 +28,7 @@ MANIFEST
 # Virtual Environment
 .venv/
 .venv-tf/
+.venv-benford/
 .venv-mun/
 venv/
 ENV/
@@ -129,6 +130,7 @@ Datasets/
 *.pkl
 !webapp/models/segmenter_weights.h5
 !webapp/models/active_release.json
+!webapp/models/active_benford_release.json
 webapp/models/releases/*
 !webapp/models/releases/run_20260306_055001/
 webapp/models/releases/run_20260306_055001/*
@@ -138,6 +140,13 @@ webapp/models/releases/run_20260306_055001/*
 !webapp/models/releases/run_20260306_055001/runtime_hybrid_metadata.json
 !webapp/models/releases/run_20260306_055001/hybrid_holdout_metrics.json
 !webapp/models/releases/run_20260306_055001/run_summary.json
+webapp/models/benford_releases/*
+!webapp/models/benford_releases/run_20260307_083320/
+webapp/models/benford_releases/run_20260307_083320/*
+!webapp/models/benford_releases/run_20260307_083320/svm_benford_rich.pkl
+!webapp/models/benford_releases/run_20260307_083320/scaler_benford_rich.pkl
+!webapp/models/benford_releases/run_20260307_083320/benford_rich_metadata.json
+!webapp/models/benford_releases/run_20260307_083320/benford_rich_holdout_metrics.json
 
 # Keep dev runtime bundle lean
 webapp/models/archive/
@@ -150,7 +159,11 @@ webapp/poppler/
 
 # Hidden MUN detector runtime artifacts
 webapp/models/hidden_detectors/
+!webapp/models/hidden_detectors/
+webapp/models/hidden_detectors/*
+!webapp/models/hidden_detectors/.gitkeep
 webapp/hidden_detector_mun.log
+webapp/hidden_detector_benford.log
 
 # Allow the committed demo runbook while keeping the rest of docs ignored
 !docs/

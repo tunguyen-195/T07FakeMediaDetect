@@ -1,0 +1,86 @@
+{
+  "current_cnn_only": {
+    "accuracy": 0.86,
+    "precision_forged": 0.8461538461538461,
+    "recall_forged": 0.88,
+    "f1_forged": 0.8627450980392156,
+    "roc_auc_forged": 0.8768,
+    "confusion_matrix_labels_0auth_1forged": [
+      [
+        42,
+        8
+      ],
+      [
+        6,
+        44
+      ]
+    ],
+    "prediction_unique_labels": [
+      0,
+      1
+    ]
+  },
+  "current_hybrid": {
+    "accuracy": 0.92,
+    "precision_forged": 0.8888888888888888,
+    "recall_forged": 0.96,
+    "f1_forged": 0.923076923076923,
+    "roc_auc_forged": 0.9792,
+    "confusion_matrix_labels_0auth_1forged": [
+      [
+        44,
+        6
+      ],
+      [
+        2,
+        48
+      ]
+    ],
+    "prediction_unique_labels": [
+      0,
+      1
+    ]
+  },
+  "benford_rich_only": {
+    "accuracy": 0.93,
+    "precision_forged": 0.9387755102040817,
+    "recall_forged": 0.92,
+    "f1_forged": 0.9292929292929293,
+    "roc_auc_forged": 0.988,
+    "confusion_matrix_labels_0auth_1forged": [
+      [
+        47,
+        3
+      ],
+      [
+        4,
+        46
+      ]
+    ],
+    "prediction_unique_labels": [
+      0,
+      1
+    ]
+  },
+  "benford_rich_mun_fused": {
+    "accuracy": 0.97,
+    "precision_forged": 0.9433962264150944,
+    "recall_forged": 1.0,
+    "f1_forged": 0.970873786407767,
+    "roc_auc_forged": 0.9964,
+    "confusion_matrix_labels_0auth_1forged": [
+      [
+        47,
+        3
+      ],
+      [
+        0,
+        50
+      ]
+    ],
+    "prediction_unique_labels": [
+      0,
+      1
+    ]
+  }
+}
