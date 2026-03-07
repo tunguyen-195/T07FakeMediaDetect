@@ -84,22 +84,26 @@ def _remove_venv_tree(path: Path) -> None:
     else:
         commands.append(["rm", "-rf", str(path)])
 
-    for cmd in commands:
-        try:
-            subprocess.run(
-                cmd,
-                check=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="ignore",
-                timeout=30,
-            )
-        except Exception as exc:
-            errors.append(f"{cmd[0]}: {exc}")
-        if not path.exists():
-            return
+    for _attempt in range(3):
+        if os.name == "nt":
+            _terminate_processes(running_venv_pids_windows(path))
+        for cmd in commands:
+            try:
+                subprocess.run(
+                    cmd,
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="ignore",
+                    timeout=30,
+                )
+            except Exception as exc:
+                errors.append(f"{cmd[0]}: {exc}")
+            if not path.exists():
+                return
+        time.sleep(2)
 
     if path.exists():
         raise RuntimeError(
@@ -351,6 +355,89 @@ def running_mun_server_pids_windows() -> list[int]:
     return sorted(set(pids))
 
 
+def _list_windows_processes() -> list[dict]:
+    if os.name != "nt":
+        return []
+    script = (
+        "Get-CimInstance Win32_Process | "
+        "Select-Object ProcessId, ExecutablePath, CommandLine | ConvertTo-Json -Compress"
+    )
+    try:
+        output = subprocess.check_output(
+            ["powershell", "-NoProfile", "-Command", script],
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            timeout=10,
+        ).strip()
+    except Exception:
+        return []
+    if not output:
+        return []
+    try:
+        payload = json.loads(output)
+    except json.JSONDecodeError:
+        return []
+    if isinstance(payload, dict):
+        payload = [payload]
+    return [item for item in payload if isinstance(item, dict)]
+
+
+def running_venv_pids_windows(venv_root: Path) -> list[int]:
+    if os.name != "nt":
+        return []
+    needle = str(venv_root).lower()
+    pids = []
+    for item in _list_windows_processes():
+        executable = str(item.get("ExecutablePath") or "").lower()
+        command_line = str(item.get("CommandLine") or "").lower()
+        if needle not in executable and needle not in command_line:
+            continue
+        try:
+            pids.append(int(item["ProcessId"]))
+        except Exception:
+            continue
+    return sorted(set(pids))
+
+
+def _terminate_processes(pids: list[int]) -> None:
+    for pid in sorted(set(pids)):
+        if pid <= 0:
+            continue
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/F", "/T"],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+                timeout=15,
+            )
+        except Exception:
+            pass
+        if os.name == "nt":
+            try:
+                subprocess.run(
+                    [
+                        "powershell",
+                        "-NoProfile",
+                        "-Command",
+                        f"Stop-Process -Id {pid} -Force -ErrorAction SilentlyContinue",
+                    ],
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="ignore",
+                    timeout=10,
+                )
+            except Exception:
+                pass
+
+
 def install_runtime() -> None:
     ensure_venv()
     pip_install(["install", "--upgrade", "pip"])
@@ -470,15 +557,22 @@ def stop_runtime() -> int:
         pid_candidates.append(pid)
     pid_candidates.extend(running_pids_for_port_windows(port))
     pid_candidates.extend(running_mun_server_pids_windows())
+    pid_candidates.extend(running_venv_pids_windows(MUN_VENV))
     pid_candidates = sorted(set(pid_candidates))
 
     if not pid_candidates:
         print(f"Hidden detector already stopped on port {port}")
         return 0
 
-    for candidate in pid_candidates:
-        subprocess.run(["taskkill", "/PID", str(candidate), "/F"], check=False)
+    _terminate_processes(pid_candidates)
     time.sleep(1)
+    remaining = running_venv_pids_windows(MUN_VENV)
+    if remaining:
+        print(
+            "Hidden detector stop requested, but these .venv-mun processes are still alive: "
+            + ", ".join(str(p) for p in remaining)
+        )
+        return 1
     print(f"Hidden detector stopped (pid={', '.join(str(p) for p in pid_candidates)})")
     return 0
 
