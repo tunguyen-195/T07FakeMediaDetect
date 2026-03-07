@@ -18,6 +18,7 @@ HIDDEN_ROOT = WEBAPP_ROOT / "hidden_detectors" / "mun"
 MODEL_MANIFEST_PATH = HIDDEN_ROOT / "model_manifest.json"
 MUN_VENV = WEBAPP_ROOT / ".venv-mun"
 MUN_PYTHON = MUN_VENV / "Scripts" / "python.exe"
+MUN_VENV_CFG = MUN_VENV / "pyvenv.cfg"
 MUN_REQUIREMENTS = HIDDEN_ROOT / "requirements.txt"
 MUN_SERVER = HIDDEN_ROOT / "server.py"
 MUN_VENDOR_ROOT = HIDDEN_ROOT / "upstream_vendor"
@@ -54,9 +55,58 @@ def load_manifest() -> dict:
 
 
 def ensure_venv() -> None:
-    if MUN_PYTHON.exists():
+    if MUN_PYTHON.exists() and MUN_VENV_CFG.exists():
         return
+    if MUN_VENV.exists():
+        print("Detected broken hidden detector venv. Rebuilding .venv-mun...")
+        _remove_venv_tree(MUN_VENV)
     subprocess.run([sys.executable, "-m", "venv", str(MUN_VENV)], check=True)
+    if not (MUN_PYTHON.exists() and MUN_VENV_CFG.exists()):
+        raise RuntimeError(f"Failed to create a healthy hidden detector venv at {MUN_VENV}")
+
+
+def _remove_venv_tree(path: Path) -> None:
+    if not path.exists():
+        return
+
+    errors: list[str] = []
+    commands = []
+    if os.name == "nt":
+        commands.append(["cmd", "/c", "rmdir", "/s", "/q", str(path)])
+        commands.append(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                f"Remove-Item -LiteralPath '{str(path)}' -Recurse -Force -ErrorAction Stop",
+            ]
+        )
+    else:
+        commands.append(["rm", "-rf", str(path)])
+
+    for cmd in commands:
+        try:
+            subprocess.run(
+                cmd,
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+                timeout=30,
+            )
+        except Exception as exc:
+            errors.append(f"{cmd[0]}: {exc}")
+        if not path.exists():
+            return
+
+    if path.exists():
+        raise RuntimeError(
+            "Unable to remove broken hidden detector venv at "
+            f"{path}. Close any remaining python/Flask processes that use .venv-mun and retry. "
+            + (" Errors: " + "; ".join(errors) if errors else "")
+        )
 
 
 def pip_install(args: list[str]) -> None:
