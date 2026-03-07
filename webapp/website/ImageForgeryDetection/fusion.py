@@ -19,17 +19,26 @@ def label_from_score(score: float, threshold: float = 0.5) -> str:
     return LABEL_FORGED if clamp_score(score) >= threshold else LABEL_AUTHENTIC
 
 
+def leaning_from_score(score: float) -> tuple[str, float]:
+    normalized = clamp_score(score)
+    leaning_label = label_from_score(normalized)
+    leaning_confidence = (
+        normalized if leaning_label == LABEL_FORGED else (1.0 - normalized)
+    ) * 100.0
+    return leaning_label, round(leaning_confidence, 2)
+
+
 def build_current_only_result(
     score_forged: float,
     source: str,
 ) -> Dict[str, Any]:
     score = clamp_score(score_forged)
     label = label_from_score(score)
-    confidence = (score if label == LABEL_FORGED else (1.0 - score)) * 100.0
+    leaning_label, leaning_confidence = leaning_from_score(score)
     return {
         "current_score_forged": score,
         "current_label": label,
-        "current_confidence": round(confidence, 2),
+        "current_confidence": leaning_confidence,
         "current_source": source,
         "hidden_score_forged": None,
         "hidden_label": None,
@@ -40,7 +49,9 @@ def build_current_only_result(
         "hidden_available": False,
         "final_score_forged": score,
         "final_label": label,
-        "final_confidence": round(confidence, 2),
+        "final_confidence": leaning_confidence,
+        "leaning_label": leaning_label,
+        "leaning_confidence": leaning_confidence,
         "requires_review": False,
         "decision_mode": "current_only",
     }
@@ -58,6 +69,7 @@ def fuse_detector_votes(
     current_score = clamp_score(current_score_forged)
     hidden_score = clamp_score(hidden_score_forged)
     final_score = clamp_score((CURRENT_WEIGHT * current_score) + (HIDDEN_WEIGHT * hidden_score))
+    leaning_label, leaning_confidence = leaning_from_score(final_score)
 
     if current_score < 0.40 and hidden_score < 0.40:
         final_label = LABEL_AUTHENTIC
@@ -72,10 +84,11 @@ def fuse_detector_votes(
 
     if final_label == LABEL_AUTHENTIC:
         final_confidence = (1.0 - final_score) * 100.0
-        requires_review = False
-    else:
+    elif final_label == LABEL_FORGED:
         final_confidence = final_score * 100.0
-        requires_review = final_label == LABEL_REVIEW
+    else:
+        final_confidence = leaning_confidence
+    requires_review = final_label == LABEL_REVIEW
 
     return {
         "current_score_forged": round(current_score, 6),
@@ -98,6 +111,8 @@ def fuse_detector_votes(
         "final_score_forged": round(final_score, 6),
         "final_label": final_label,
         "final_confidence": round(final_confidence, 2),
+        "leaning_label": leaning_label,
+        "leaning_confidence": leaning_confidence,
         "requires_review": requires_review,
         "decision_mode": "fused_hidden_mun",
     }

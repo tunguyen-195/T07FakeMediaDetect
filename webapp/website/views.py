@@ -43,6 +43,7 @@ inputVideoUrl = ''
 fileVideoUrl = ''
 infoDict = {}
 inputImage=''
+WEB_SAFE_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'}
 
 
 def getMetaData(path):
@@ -93,6 +94,27 @@ def getMetaData(path):
                         infoDict[key] = line[-1].strip()
         except Exception as e:
             pass  # Ignore hachoir errors, PIL data is enough
+
+
+def build_browser_preview_url(file_path, original_name=None):
+    """Return a browser-safe media URL for previewing uploaded images."""
+    ext = os.path.splitext(file_path)[1].lower()
+    media_name = os.path.basename(file_path)
+
+    if ext in WEB_SAFE_IMAGE_EXTENSIONS:
+        return '../media/' + media_name
+
+    preview_stem = os.path.splitext(original_name or media_name)[0]
+    preview_name = f"{preview_stem}_preview.jpg"
+    preview_path = os.path.join(os.getcwd(), 'media', preview_name)
+
+    try:
+        with Image.open(file_path) as img:
+            img.convert('RGB').save(preview_path, 'JPEG', quality=92)
+        return '../media/' + preview_name
+    except Exception as e:
+        print(f"[WARNING] Failed to build browser preview for {file_path}: {e}")
+        return '../media/' + media_name
 
 
 def get_video_metadata(filename):
@@ -161,14 +183,39 @@ def pdf(request):
     return render(request, "pdf.html")
 
 
-def to_friendly_image_label(result_label):
+def to_friendly_image_label(result_label, leaning_label=None):
     if result_label == 'Authentic':
         return '\u1ea2nh nguy\u00ean b\u1ea3n'
     if result_label == 'Forged':
         return '\u1ea2nh \u0111\u00e3 qua ch\u1ec9nh s\u1eeda'
     if result_label == 'Review':
+        if leaning_label == 'Authentic':
+            return 'Nghi ng\u1edd - nghi\u00eang v\u1ec1 \u1ea3nh nguy\u00ean b\u1ea3n'
+        if leaning_label == 'Forged':
+            return 'Nghi ng\u1edd - nghi\u00eang v\u1ec1 \u1ea3nh \u0111\u00e3 qua ch\u1ec9nh s\u1eeda'
         return 'Nghi ng\u1edd - c\u1ea7n ki\u1ec3m tra th\u00eam'
     return result_label
+
+
+def build_review_detail(result_label, leaning_label=None, leaning_confidence=None):
+    if result_label != 'Review':
+        return ''
+
+    if leaning_label == 'Authentic':
+        return (
+            'H\u1ec7 th\u1ed1ng ch\u01b0a \u0111\u1ee7 ch\u1eafc ch\u1eafn \u0111\u1ec3 k\u1ebft lu\u1eadn, '
+            f'nh\u01b0ng hi\u1ec7n \u0111ang nghi\u00eang v\u1ec1 \u1ea3nh nguy\u00ean b\u1ea3n ({leaning_confidence:.2f}%).'
+            if leaning_confidence is not None else
+            'H\u1ec7 th\u1ed1ng ch\u01b0a \u0111\u1ee7 ch\u1eafc ch\u1eafn \u0111\u1ec3 k\u1ebft lu\u1eadn, nh\u01b0ng hi\u1ec7n \u0111ang nghi\u00eang v\u1ec1 \u1ea3nh nguy\u00ean b\u1ea3n.'
+        )
+    if leaning_label == 'Forged':
+        return (
+            'H\u1ec7 th\u1ed1ng ch\u01b0a \u0111\u1ee7 ch\u1eafc ch\u1eafn \u0111\u1ec3 k\u1ebft lu\u1eadn, '
+            f'nh\u01b0ng hi\u1ec7n \u0111ang nghi\u00eang v\u1ec1 \u1ea3nh \u0111\u00e3 qua ch\u1ec9nh s\u1eeda ({leaning_confidence:.2f}%).'
+            if leaning_confidence is not None else
+            'H\u1ec7 th\u1ed1ng ch\u01b0a \u0111\u1ee7 ch\u1eafc ch\u1eafn \u0111\u1ec3 k\u1ebft lu\u1eadn, nh\u01b0ng hi\u1ec7n \u0111ang nghi\u00eang v\u1ec1 \u1ea3nh \u0111\u00e3 qua ch\u1ec9nh s\u1eeda.'
+        )
+    return '\u1ea2nh n\u00e0y c\u1ea7n ki\u1ec3m tra th\u00eam do hai detector ch\u01b0a \u0111\u1ed3ng thu\u1eadn ho\u00e0n to\u00e0n.'
 
 
 #pdf2image for loop
@@ -248,12 +295,19 @@ def runPdf2image(request):
                 
                 # Analyze each page
                 res = FID().predict_result_structured(imagefileurl, source_type="pdf_page", require_hidden=True)
-                friendly_type = to_friendly_image_label(res['final_label'])
+                friendly_type = to_friendly_image_label(res['final_label'], res.get('leaning_label'))
                 result_data = {
                     'type': friendly_type,
                     'confidence': f"{res['final_confidence']:0.2f}",
                     'requires_review': res['requires_review'],
                     'final_label': res['final_label'],
+                    'leaning_label': res.get('leaning_label'),
+                    'leaning_confidence': f"{res.get('leaning_confidence', 0):0.2f}",
+                    'detail': build_review_detail(
+                        res['final_label'],
+                        res.get('leaning_label'),
+                        res.get('leaning_confidence'),
+                    ),
                 }
                 
                 print(f"[DEBUG] Page {i} result: {res['final_label']} ({res['final_confidence']:.2f}%)")
@@ -316,10 +370,11 @@ def runAnalysis(request):
                     fs = FileSystemStorage()
                     file = fs.save(inputImg.name, inputImg)
                     fileurl = os.path.join(os.getcwd(), 'media', inputImg.name)
-                    inputImageUrl = '../media/' + inputImg.name
+                    inputImageUrl = build_browser_preview_url(fileurl, inputImg.name)
             elif inputImageUrl!='':
-                #inputImageUrl = inputImageUrl
-                fileurl = os.path.join(os.getcwd(), 'media', os.path.basename(inputImageUrl))
+                # Keep the original uploaded file when a browser-safe preview URL is being shown.
+                if not fileurl or not os.path.exists(fileurl):
+                    fileurl = os.path.join(os.getcwd(), 'media', os.path.basename(inputImageUrl))
             # Validate file path before proceeding
             try:
                 import urllib.parse
@@ -354,16 +409,19 @@ def runAnalysis(request):
                         'metadata': infoDict.items(),
                     },
                 )
-            friendly_type = to_friendly_image_label(res['final_label'])
+            friendly_type = to_friendly_image_label(res['final_label'], res.get('leaning_label'))
             
             result = {
                 'type': friendly_type,
                 'confidence': f"{res['final_confidence']:0.2f}",
                 'requires_review': res['requires_review'],
                 'final_label': res['final_label'],
-                'detail': (
-                    '\u1ea2nh n\u00e0y c\u1ea7n ki\u1ec3m tra th\u00eam do hai detector ch\u01b0a \u0111\u1ed3ng thu\u1eadn ho\u00e0n to\u00e0n.'
-                    if res['requires_review'] else ''
+                'leaning_label': res.get('leaning_label'),
+                'leaning_confidence': f"{res.get('leaning_confidence', 0):0.2f}",
+                'detail': build_review_detail(
+                    res['final_label'],
+                    res.get('leaning_label'),
+                    res.get('leaning_confidence'),
                 ),
             }
             
