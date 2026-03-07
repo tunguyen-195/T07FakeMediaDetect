@@ -180,6 +180,8 @@ def copy_vendor_tree() -> None:
         destination = site_packages / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
+    for pycache_dir in (site_packages / "mmseg").rglob("__pycache__"):
+        shutil.rmtree(pycache_dir, ignore_errors=True)
 
 
 def health_url() -> str:

@@ -5,6 +5,7 @@ import os
 import re
 import time
 import importlib
+import sys
 from pathlib import Path
 from typing import Any, Dict
 
@@ -13,6 +14,7 @@ from flask import Flask, jsonify, request
 
 APP_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = APP_ROOT.parents[1]
+VENDOR_ROOT = APP_ROOT / "upstream_vendor"
 MODELS_ROOT = PROJECT_ROOT / "models" / "hidden_detectors" / "mun"
 WEIGHTS_ROOT = MODELS_ROOT / "weights"
 OUTPUT_ROOT = MODELS_ROOT / "outputs"
@@ -24,6 +26,9 @@ MODEL = None
 MODEL_NAME = "MUN"
 DEVICE = "cpu"
 
+if str(VENDOR_ROOT) not in sys.path:
+    sys.path.insert(0, str(VENDOR_ROOT))
+
 
 CUSTOM_IMPORT_MODULES = [
     "mmseg.models.data_preprocessor",
@@ -34,6 +39,12 @@ CUSTOM_IMPORT_MODULES = [
     "mmseg.models.losses.iou_loss",
     "mmpretrain.models.backbones.convnext",
 ]
+REQUIRED_TRANSFORMS = (
+    "NPPTest",
+    "NPPResize",
+    "NPPResizeToMultiple",
+    "NPPPackSegInputs",
+)
 
 
 def _load_manifest() -> Dict[str, Any]:
@@ -66,8 +77,19 @@ def _ensure_custom_registrations() -> None:
     # Some Windows installs do not reliably execute config-level custom_imports
     # before the test pipeline is built. Import them explicitly so transforms like
     # NPPTest and NPPPackSegInputs are always registered.
+    importlib.invalidate_caches()
     for module_name in CUSTOM_IMPORT_MODULES:
         importlib.import_module(module_name)
+    from mmseg.registry import TRANSFORMS
+
+    missing = [name for name in REQUIRED_TRANSFORMS if name not in TRANSFORMS.module_dict]
+    if missing:
+        raise RuntimeError(
+            "Required MUN transforms are not registered: "
+            + ", ".join(missing)
+            + ". Loaded mmseg from "
+            + str(Path(importlib.import_module("mmseg").__file__).resolve())
+        )
 
 
 def _extract_probability_map(result):
