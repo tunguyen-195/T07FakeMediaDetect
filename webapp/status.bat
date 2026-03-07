@@ -57,6 +57,7 @@ if exist ".venv-tf\Scripts\python.exe" (
     .venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py status
     if %errorlevel% neq 0 (
         echo   Status: FAILED
+        echo   Run ".venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py probe" for root-cause diagnostics.
         echo   Run install.bat or start.bat to repair the hidden detector runtime.
     )
 ) else (

@@ -26,6 +26,7 @@ MUN_MODELS_ROOT = WEBAPP_ROOT / "models" / "hidden_detectors" / "mun"
 MUN_WEIGHTS_ROOT = MUN_MODELS_ROOT / "weights"
 MUN_OUTPUT_ROOT = MUN_MODELS_ROOT / "outputs"
 LOG_PATH = WEBAPP_ROOT / "hidden_detector_mun.log"
+PROBE_OUTPUT_PREFIX = "__T07_MUN_PROBE__="
 REQUIRED_RUNTIME_IMPORTS = {
     "flask": "Flask==3.0.3",
     "gdown": "gdown==5.2.1",
@@ -37,16 +38,64 @@ REQUIRED_RUNTIME_IMPORTS = {
     "PIL": "Pillow==9.5.0",
     "mmengine": "mmengine==0.10.4",
 }
+REQUIRED_MUN_TRANSFORMS = (
+    "NPPTest",
+    "NPPResize",
+    "NPPResizeToMultiple",
+    "NPPPackSegInputs",
+)
 STARTUP_DEADLINE_SECONDS = 180
 HEALTH_RETRY_INTERVAL_SECONDS = 2
 HEALTH_START_TIMEOUT_SECONDS = 5.0
 HEALTH_STATUS_TIMEOUT_SECONDS = 2.0
 LOG_TAIL_LINES = 40
+PROBE_TIMEOUT_SECONDS = 120
+
+PROBE_SCRIPT = rf"""
+import importlib.util
+import json
+import pathlib
+import sys
+import traceback
+
+output_prefix = {PROBE_OUTPUT_PREFIX!r}
+server_path = pathlib.Path(sys.argv[1]).resolve()
+spec = importlib.util.spec_from_file_location("t07_mun_probe_server", str(server_path))
+if spec is None or spec.loader is None:
+    payload = {{
+        "ok": False,
+        "missing_transforms": [],
+        "module_issues": [],
+        "custom_module_sources": {{}},
+        "mmseg_module_path": "",
+        "error": f"Unable to load import spec for {{server_path}}",
+    }}
+    print(output_prefix + json.dumps(payload, ensure_ascii=True))
+    raise SystemExit(2)
+
+module = importlib.util.module_from_spec(spec)
+try:
+    spec.loader.exec_module(module)
+    payload = module.probe_custom_registrations()
+except Exception as exc:
+    payload = {{
+        "ok": False,
+        "missing_transforms": [],
+        "module_issues": [],
+        "custom_module_sources": {{}},
+        "mmseg_module_path": "",
+        "error": f"{{type(exc).__name__}}: {{exc}}",
+        "traceback": traceback.format_exc(),
+    }}
+
+print(output_prefix + json.dumps(payload, ensure_ascii=True))
+raise SystemExit(0 if payload.get("ok") else 2)
+"""
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Manage hidden MUN detector runtime.")
-    parser.add_argument("mode", choices=["install", "status", "start", "stop"])
+    parser.add_argument("mode", choices=["install", "status", "start", "stop", "probe"])
     return parser.parse_args()
 
 
@@ -269,6 +318,111 @@ def tail_log_lines(max_lines: int = LOG_TAIL_LINES) -> str:
     return "\n".join(lines[-max_lines:])
 
 
+def _extract_probe_payload(output: str) -> dict | None:
+    for line in output.splitlines():
+        line = line.strip()
+        if not line.startswith(PROBE_OUTPUT_PREFIX):
+            continue
+        raw_payload = line[len(PROBE_OUTPUT_PREFIX) :].strip()
+        if not raw_payload:
+            continue
+        try:
+            data = json.loads(raw_payload)
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+def run_probe() -> tuple[bool, dict, str]:
+    if not MUN_PYTHON.exists():
+        return False, {}, f"MUN venv missing: {MUN_PYTHON}"
+
+    try:
+        result = subprocess.run(
+            [str(MUN_PYTHON), "-c", PROBE_SCRIPT, str(MUN_SERVER)],
+            cwd=str(WEBAPP_ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            timeout=PROBE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return False, {}, f"Probe timed out after {PROBE_TIMEOUT_SECONDS}s"
+    except Exception as exc:
+        return False, {}, f"Probe execution failed: {exc}"
+
+    combined_output = f"{result.stdout}\n{result.stderr}"
+    payload = _extract_probe_payload(combined_output)
+    if payload is None:
+        detail = (
+            "Probe did not return diagnostics payload. "
+            f"exit={result.returncode}. Output tail: {combined_output[-600:]}"
+        )
+        return False, {}, detail
+
+    missing = payload.get("missing_transforms") or []
+    module_issues = payload.get("module_issues") or []
+    if not isinstance(missing, list):
+        missing = [str(missing)]
+    if not isinstance(module_issues, list):
+        module_issues = [str(module_issues)]
+    payload["missing_transforms"] = [str(item) for item in missing]
+    payload["module_issues"] = [str(item) for item in module_issues]
+    payload.setdefault("custom_module_sources", {})
+
+    ok = bool(payload.get("ok")) and result.returncode == 0
+    if ok:
+        return True, payload, "Probe passed"
+
+    reasons: list[str] = []
+    if payload.get("error"):
+        reasons.append(str(payload["error"]))
+    if payload["missing_transforms"]:
+        reasons.append("missing transforms: " + ", ".join(payload["missing_transforms"]))
+    if payload["module_issues"]:
+        reasons.append("module issues: " + "; ".join(payload["module_issues"]))
+    if not reasons:
+        reasons.append(f"probe exit code {result.returncode}")
+    return False, payload, " | ".join(reasons)
+
+
+def print_probe_report(payload: dict, detail: str) -> None:
+    print("[Hidden Detector Probe]")
+    print(f"  result: {'PASS' if payload.get('ok') else 'FAIL'}")
+    mmseg_path = payload.get("mmseg_module_path") or "unknown"
+    print(f"  mmseg: {mmseg_path}")
+    missing = payload.get("missing_transforms") or []
+    expected = ", ".join(REQUIRED_MUN_TRANSFORMS)
+    if payload.get("ok") and not missing:
+        print(f"  transforms: OK ({expected})")
+    elif missing:
+        print("  transforms: MISSING - " + ", ".join(str(item) for item in missing))
+    else:
+        print("  transforms: UNKNOWN (probe failed before registry validation)")
+    module_issues = payload.get("module_issues") or []
+    if module_issues:
+        print("  module_issues: " + "; ".join(str(item) for item in module_issues))
+    sources = payload.get("custom_module_sources") or {}
+    if isinstance(sources, dict) and sources:
+        print("  custom_module_sources:")
+        for module_name in sorted(sources):
+            print(f"    {module_name}: {sources[module_name]}")
+    if detail:
+        print(f"  detail: {detail}")
+
+
+def run_probe_mode() -> int:
+    ok, payload, detail = run_probe()
+    if not payload:
+        payload = {"ok": False}
+    print_probe_report(payload, detail)
+    return 0 if ok else 1
+
+
 def running_pid_for_port(port: int) -> int | None:
     try:
         output = subprocess.check_output(
@@ -447,9 +601,18 @@ def install_runtime() -> None:
     manifest = load_manifest()
     ensure_weight(manifest["checkpoint"])
     ensure_weight(manifest["noiseprint_checkpoint"])
-    copy_vendor_tree()
+    try:
+        copy_vendor_tree()
+        print("[INFO] Synced vendor compatibility files into .venv-mun site-packages.")
+    except Exception as exc:
+        print(f"[WARNING] Vendor compatibility sync skipped: {exc}")
 
     MUN_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    probe_ok, _payload, probe_detail = run_probe()
+    if probe_ok:
+        print("[INFO] MUN probe passed: custom transforms are registered from vendor modules.")
+    else:
+        print(f"[WARNING] MUN probe failed after install: {probe_detail}")
     ok, detail = check_health(timeout=1.0)
     if ok:
         print(f"MUN hidden detector already healthy on device={detail}")
@@ -482,7 +645,18 @@ def print_status() -> int:
     if all_pids:
         print(f"  pid: {', '.join(str(p) for p in all_pids)}")
     print(f"  health: {'OK' if ok else 'FAILED'} - {detail}")
-    return 0 if (MUN_PYTHON.exists() and ok) else 1
+    probe_ok, probe_payload, probe_detail = run_probe()
+    if not probe_payload:
+        probe_payload = {"ok": False}
+    print(f"  probe: {'PASS' if probe_ok else 'FAILED'}")
+    missing = probe_payload.get("missing_transforms") or []
+    if missing:
+        print("  probe_missing_transforms: " + ", ".join(str(item) for item in missing))
+    module_issues = probe_payload.get("module_issues") or []
+    if module_issues:
+        print("  probe_module_issues: " + "; ".join(str(item) for item in module_issues))
+    print(f"  probe_detail: {probe_detail}")
+    return 0 if (MUN_PYTHON.exists() and ok and probe_ok) else 1
 
 
 def start_runtime() -> int:
@@ -498,14 +672,21 @@ def start_runtime() -> int:
         print(f"[ERROR] Hidden detector runtime import check failed: {exc}")
         return 1
 
-    # Keep the vendored mmseg patches in sync on every start so machines that only
-    # pull code changes do not keep stale site-packages copies.
-    copy_vendor_tree()
+    # Optional compatibility sync for old runtime behavior; startup does not depend on this.
+    try:
+        copy_vendor_tree()
+    except Exception as exc:
+        print(f"[WARNING] Vendor compatibility sync skipped: {exc}")
 
     ok, _detail = check_health(timeout=HEALTH_STATUS_TIMEOUT_SECONDS)
     if ok:
         print(f"Hidden detector already running on port {port}")
         return 0
+
+    probe_ok, _probe_payload, probe_detail = run_probe()
+    if not probe_ok:
+        print(f"[ERROR] Hidden detector probe failed before startup: {probe_detail}")
+        return 1
 
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     log_handle = LOG_PATH.open("a", encoding="utf-8")
@@ -588,6 +769,8 @@ def main() -> int:
         return start_runtime()
     if args.mode == "stop":
         return stop_runtime()
+    if args.mode == "probe":
+        return run_probe_mode()
     return 1
 
 

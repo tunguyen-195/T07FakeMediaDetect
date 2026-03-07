@@ -17,6 +17,10 @@ if not defined T07_PRIMARY_IMAGE_DETECTOR (
 if not defined T07_START_BENFORD_RICH (
     set "T07_START_BENFORD_RICH=0"
 )
+if not defined T07_MUN_FAIL_FAST (
+    set "T07_MUN_FAIL_FAST=0"
+)
+set "T07_MUN_AVAILABLE=0"
 
 if not exist ".venv-tf\Scripts\python.exe" (
     echo [ERROR] .venv-tf is missing.
@@ -73,11 +77,20 @@ echo.
 echo [INFO] Starting hidden MUN detector...
 .venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py start
 if %errorlevel% neq 0 (
-    echo [ERROR] Hidden MUN detector failed to start.
-    echo Dev mode is fail-fast. Fix the hidden detector before retrying.
-    echo Check log: hidden_detector_mun.log
-    pause
-    exit /b 1
+    if /I "%T07_MUN_FAIL_FAST%"=="1" (
+        echo [ERROR] Hidden MUN detector failed to start.
+        echo Strict mode enabled via T07_MUN_FAIL_FAST=1. Startup is blocked.
+        echo Check log: hidden_detector_mun.log
+        pause
+        exit /b 1
+    ) else (
+        echo [WARNING] Hidden MUN detector failed to start.
+        echo [WARNING] Continuing with fallback runtime: CNN-only.
+        echo [WARNING] Set T07_MUN_FAIL_FAST=1 to restore strict fail-fast behavior.
+        echo [WARNING] Check log: hidden_detector_mun.log
+    )
+) else (
+    set "T07_MUN_AVAILABLE=1"
 )
 
 if not exist "models\forgery_model_me.hdf5" (
@@ -98,8 +111,13 @@ if /I "%T07_START_BENFORD_RICH%"=="1" (
 echo BenfordRich detector health:
 echo   - http://127.0.0.1:8012/health
 )
+if /I "%T07_MUN_AVAILABLE%"=="1" (
 echo Hidden detector health:
 echo   - http://127.0.0.1:8011/health
+) else (
+echo Hidden detector status:
+echo   - unavailable (running fallback CNN-only mode^)
+)
 echo.
 echo Press Ctrl+C to stop the server.
 echo ========================================================

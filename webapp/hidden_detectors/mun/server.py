@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
 import time
 import importlib
+import importlib.util
 import sys
 from pathlib import Path
 from typing import Any, Dict
@@ -31,22 +33,39 @@ if str(VENDOR_ROOT) not in sys.path:
     sys.path.insert(0, str(VENDOR_ROOT))
 
 
-CUSTOM_IMPORT_MODULES = [
-    "mmseg.models.data_preprocessor",
-    "mmseg.datasets.transforms.transforms",
-    "mmseg.datasets.transforms.formatting",
-    "mmseg.models.segmentors.npp",
-    "mmseg.models.decode_heads.nu_head",
-    "mmseg.models.losses.iou_loss",
-    "mmpretrain.models.backbones.convnext",
-]
+FORCED_VENDOR_MODULE_FILES = {
+    "mmseg.datasets.transforms.transforms": VENDOR_MMSEG_ROOT / "datasets" / "transforms" / "transforms.py",
+    "mmseg.datasets.transforms.formatting": VENDOR_MMSEG_ROOT / "datasets" / "transforms" / "formatting.py",
+    "mmseg.models.segmentors.npp": VENDOR_MMSEG_ROOT / "models" / "segmentors" / "npp.py",
+    "mmseg.models.decode_heads.nu_head": VENDOR_MMSEG_ROOT / "models" / "decode_heads" / "nu_head.py",
+    "mmseg.models.losses.iou_loss": VENDOR_MMSEG_ROOT / "models" / "losses" / "iou_loss.py",
+}
+OPTIONAL_IMPORT_MODULES: list[str] = []
+CACHE_PURGE_PREFIXES = tuple(
+    sorted(
+        {
+            *FORCED_VENDOR_MODULE_FILES.keys(),
+            *OPTIONAL_IMPORT_MODULES,
+            "mmseg.datasets.transforms.NoisePrintPlus",
+        }
+    )
+)
 REQUIRED_TRANSFORMS = (
     "NPPTest",
     "NPPResize",
     "NPPResizeToMultiple",
     "NPPPackSegInputs",
 )
+REQUIRED_VENDOR_CLASSES = {
+    "mmseg.datasets.transforms.transforms": (
+        "NPPTest",
+        "NPPResize",
+        "NPPResizeToMultiple",
+    ),
+    "mmseg.datasets.transforms.formatting": ("NPPPackSegInputs",),
+}
 VENDOR_PACKAGE_PATHS = {
+    "mmseg.datasets": VENDOR_MMSEG_ROOT / "datasets",
     "mmseg.models": VENDOR_MMSEG_ROOT / "models",
     "mmseg.datasets.transforms": VENDOR_MMSEG_ROOT / "datasets" / "transforms",
     "mmseg.models.segmentors": VENDOR_MMSEG_ROOT / "models" / "segmentors",
@@ -85,33 +104,158 @@ def _prepend_vendor_subpackage_paths() -> None:
     for package_name, vendor_path in VENDOR_PACKAGE_PATHS.items():
         package = importlib.import_module(package_name)
         current_paths = list(getattr(package, "__path__", []))
-        vendor_path_str = str(vendor_path)
+        vendor_path_str = str(vendor_path.resolve())
         if vendor_path_str not in current_paths:
             package.__path__ = [vendor_path_str, *current_paths]
 
 
-def _ensure_custom_registrations() -> None:
-    # Some Windows installs do not reliably execute config-level custom_imports
-    # before the test pipeline is built. Import them explicitly so transforms like
-    # NPPTest and NPPPackSegInputs are always registered.
+def _is_within_vendor(file_path: str) -> bool:
+    try:
+        resolved = Path(file_path).resolve()
+    except Exception:
+        return False
+    resolved_norm = os.path.normcase(str(resolved))
+    vendor_norm = os.path.normcase(str(VENDOR_ROOT.resolve()))
+    return resolved_norm == vendor_norm or resolved_norm.startswith(vendor_norm + os.sep)
+
+
+def _purge_custom_modules() -> None:
+    for name in list(sys.modules.keys()):
+        for prefix in CACHE_PURGE_PREFIXES:
+            if name == prefix or name.startswith(prefix + "."):
+                sys.modules.pop(name, None)
+                break
+
+
+def _force_load_module_from_file(module_name: str, module_path: Path):
+    module_path = module_path.resolve()
+    if not module_path.exists():
+        raise FileNotFoundError(f"Required vendor module missing: {module_path}")
+
+    parent_name, _, child_name = module_name.rpartition(".")
+    if parent_name:
+        parent_module = importlib.import_module(parent_name)
+    else:
+        parent_module = None
+
+    spec = importlib.util.spec_from_file_location(module_name, str(module_path))
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to build import spec for {module_name} from {module_path}")
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    if parent_module is not None:
+        setattr(parent_module, child_name, module)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _collect_registered_classes_by_registry(module_path: Path) -> Dict[str, list[str]]:
+    source = module_path.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    registered: Dict[str, list[str]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for deco in node.decorator_list:
+            if not isinstance(deco, ast.Call):
+                continue
+            func = deco.func
+            if (
+                isinstance(func, ast.Attribute)
+                and isinstance(func.value, ast.Name)
+                and func.attr == "register_module"
+            ):
+                registered.setdefault(func.value.id, []).append(node.name)
+                break
+    return registered
+
+
+def _ensure_custom_registrations(strict: bool = True) -> Dict[str, Any]:
     importlib.invalidate_caches()
     _prepend_vendor_subpackage_paths()
-    loaded_from: Dict[str, str] = {}
-    for module_name in CUSTOM_IMPORT_MODULES:
-        module = importlib.import_module(module_name)
-        loaded_from[module_name] = str(Path(getattr(module, "__file__", "<unknown>")).resolve())
+    _purge_custom_modules()
+
+    # Make registration deterministic across repeated probe/start calls.
+    import mmseg.registry as mmseg_registry
+    from mmengine.registry import Registry
     from mmseg.registry import TRANSFORMS
 
+    for name in REQUIRED_TRANSFORMS:
+        TRANSFORMS.module_dict.pop(name, None)
+
+    loaded_from: Dict[str, str] = {}
+    module_issues: list[str] = []
+
+    original_register_module = Registry.register_module
+
+    def _register_module_force(self, name=None, force=False, module=None):  # type: ignore[override]
+        return original_register_module(self, name=name, force=True, module=module)
+
+    Registry.register_module = _register_module_force  # type: ignore[assignment]
+    try:
+        for module_name, module_file in FORCED_VENDOR_MODULE_FILES.items():
+            registered = _collect_registered_classes_by_registry(module_file)
+            for registry_name, class_names in registered.items():
+                registry_obj = getattr(mmseg_registry, registry_name, None)
+                module_dict = getattr(registry_obj, "module_dict", None)
+                if module_dict is None:
+                    continue
+                for class_name in class_names:
+                    module_dict.pop(class_name, None)
+            module = _force_load_module_from_file(module_name, module_file)
+            loaded_from[module_name] = str(Path(getattr(module, "__file__", "<unknown>")).resolve())
+    finally:
+        Registry.register_module = original_register_module  # type: ignore[assignment]
+
+    for module_name in OPTIONAL_IMPORT_MODULES:
+        module = importlib.import_module(module_name)
+        loaded_from[module_name] = str(Path(getattr(module, "__file__", "<unknown>")).resolve())
+
+    for module_name in FORCED_VENDOR_MODULE_FILES:
+        loaded_path = loaded_from.get(module_name, "")
+        if not _is_within_vendor(loaded_path):
+            module_issues.append(f"{module_name} loaded from non-vendor path: {loaded_path}")
+
+    for module_name, required_classes in REQUIRED_VENDOR_CLASSES.items():
+        module = sys.modules.get(module_name)
+        if module is None:
+            module_issues.append(f"{module_name} not found in sys.modules")
+            continue
+        for class_name in required_classes:
+            if not hasattr(module, class_name):
+                module_issues.append(f"{module_name} missing class {class_name}")
+
     missing = [name for name in REQUIRED_TRANSFORMS if name not in TRANSFORMS.module_dict]
-    if missing:
+    mmseg_module_path = str(Path(importlib.import_module("mmseg").__file__).resolve())
+    result: Dict[str, Any] = {
+        "ok": not missing and not module_issues,
+        "required_transforms": list(REQUIRED_TRANSFORMS),
+        "missing_transforms": missing,
+        "module_issues": module_issues,
+        "mmseg_module_path": mmseg_module_path,
+        "custom_module_sources": loaded_from,
+    }
+
+    if strict and not result["ok"]:
+        details = []
+        if missing:
+            details.append("missing transforms: " + ", ".join(missing))
+        if module_issues:
+            details.append("module issues: " + "; ".join(module_issues))
         raise RuntimeError(
-            "Required MUN transforms are not registered: "
-            + ", ".join(missing)
+            "MUN custom registration validation failed. "
+            + " | ".join(details)
             + ". Loaded mmseg from "
-            + str(Path(importlib.import_module("mmseg").__file__).resolve())
-            + ". Custom module sources: "
+            + mmseg_module_path
+            + ". Loaded custom module sources: "
             + json.dumps(loaded_from, ensure_ascii=True)
         )
+    return result
+
+
+def probe_custom_registrations() -> Dict[str, Any]:
+    return _ensure_custom_registrations(strict=False)
 
 
 def _extract_probability_map(result):
