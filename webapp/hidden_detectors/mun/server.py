@@ -161,9 +161,9 @@ def load_model_once():
     os.environ["T07_MUN_NPP_PATH"] = str(paths["noiseprint_path"])
 
     import torch
-    from mmseg.apis import inference_model, init_model  # noqa: F401
 
     _ensure_custom_registrations()
+    from mmseg.apis import inference_model, init_model  # noqa: F401
 
     DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
     MODEL = init_model(str(CONFIG_PATH), str(paths["checkpoint_path"]), device=DEVICE)
