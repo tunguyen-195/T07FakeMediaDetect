@@ -25,6 +25,17 @@ MUN_MODELS_ROOT = WEBAPP_ROOT / "models" / "hidden_detectors" / "mun"
 MUN_WEIGHTS_ROOT = MUN_MODELS_ROOT / "weights"
 MUN_OUTPUT_ROOT = MUN_MODELS_ROOT / "outputs"
 LOG_PATH = WEBAPP_ROOT / "hidden_detector_mun.log"
+REQUIRED_RUNTIME_IMPORTS = {
+    "flask": "Flask==3.0.3",
+    "gdown": "gdown==5.2.1",
+    "ftfy": "ftfy==6.2.3",
+    "torch": "torch==2.0.1",
+    "torchvision": "torchvision==0.15.2",
+    "numpy": "numpy==1.24.4",
+    "cv2": "opencv-python-headless==4.9.0.80",
+    "PIL": "Pillow==9.5.0",
+    "mmengine": "mmengine==0.10.4",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -45,6 +56,60 @@ def ensure_venv() -> None:
 
 def pip_install(args: list[str]) -> None:
     subprocess.run([str(MUN_PYTHON), "-m", "pip", *args], check=True)
+
+
+def can_import(module_name: str) -> bool:
+    probe = "import importlib, sys; importlib.import_module(sys.argv[1]); print('OK')"
+    result = subprocess.run(
+        [str(MUN_PYTHON), "-c", probe, module_name],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="ignore",
+    )
+    return result.returncode == 0
+
+
+def ensure_required_runtime_imports() -> None:
+    missing_packages = [
+        package_spec
+        for module_name, package_spec in REQUIRED_RUNTIME_IMPORTS.items()
+        if not can_import(module_name)
+    ]
+    if not missing_packages:
+        return
+
+    print(
+        "Repairing hidden detector runtime, missing imports: "
+        + ", ".join(missing_packages)
+    )
+    if REQUIRED_RUNTIME_IMPORTS["cv2"] in missing_packages:
+        pip_install(["install", "--force-reinstall", "--no-cache-dir", REQUIRED_RUNTIME_IMPORTS["numpy"]])
+        pip_install(
+            [
+                "install",
+                "--force-reinstall",
+                "--no-cache-dir",
+                "--no-deps",
+                REQUIRED_RUNTIME_IMPORTS["cv2"],
+            ]
+        )
+        missing_packages = [pkg for pkg in missing_packages if pkg != REQUIRED_RUNTIME_IMPORTS["cv2"]]
+
+    if missing_packages:
+        pip_install(["install", "--force-reinstall", "--no-cache-dir", *missing_packages])
+
+    still_missing = [
+        package_spec
+        for module_name, package_spec in REQUIRED_RUNTIME_IMPORTS.items()
+        if not can_import(module_name)
+    ]
+    if still_missing:
+        raise RuntimeError(
+            "Hidden detector runtime is still missing required packages after repair: "
+            + ", ".join(still_missing)
+        )
 
 
 def sha256_of(path: Path) -> str:
@@ -215,6 +280,7 @@ def install_runtime() -> None:
     ensure_venv()
     pip_install(["install", "--upgrade", "pip"])
     pip_install(["install", "-r", str(MUN_REQUIREMENTS)])
+    ensure_required_runtime_imports()
 
     manifest = load_manifest()
     ensure_weight(manifest["checkpoint"])
@@ -249,7 +315,8 @@ def print_status() -> int:
     pid = running_pid_for_port(port)
     extra_pids = running_pids_for_port_windows(port)
     all_pids = sorted(set(([pid] if pid else []) + extra_pids))
-    print(f"  port_{port}: {'RUNNING' if all_pids else 'STOPPED'}")
+    running = bool(all_pids) or ok
+    print(f"  port_{port}: {'RUNNING' if running else 'STOPPED'}")
     if all_pids:
         print(f"  pid: {', '.join(str(p) for p in all_pids)}")
     print(f"  health: {'OK' if ok else 'FAILED'} - {detail}")
@@ -261,6 +328,12 @@ def start_runtime() -> int:
     port = int(manifest["sidecar"]["port"])
     if not MUN_PYTHON.exists():
         print(f"[ERROR] Hidden detector venv missing: {MUN_PYTHON}")
+        return 1
+
+    try:
+        ensure_required_runtime_imports()
+    except Exception as exc:
+        print(f"[ERROR] Hidden detector runtime import check failed: {exc}")
         return 1
 
     # Keep the vendored mmseg patches in sync on every start so machines that only
