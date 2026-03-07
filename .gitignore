@@ -122,7 +122,7 @@ webapp/media/*.webm
 # Project-specific ignored folders
 docs/
 thesis_context/
-Datasets/
+/Datasets/
 
 # Large model files (exceed GitHub 100MB limit)
 *.hdf5
