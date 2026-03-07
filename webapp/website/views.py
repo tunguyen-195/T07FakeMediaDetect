@@ -1,4 +1,4 @@
-import datetime
+﻿import datetime
 from django.shortcuts import render, redirect, HttpResponseRedirect
 import asyncio
 from multiprocessing import Pool
@@ -33,6 +33,34 @@ def detect_video_forgery(*args, **kwargs):
     return _detect(*args, **kwargs)
 from PIL import Image
 from PIL.ExifTags import TAGS
+
+
+def safe_print(*args, **kwargs):
+    sep = kwargs.pop("sep", " ")
+    end = kwargs.pop("end", "\n")
+    target_streams = []
+    if "file" in kwargs:
+        target_streams.append(kwargs.pop("file"))
+    target_streams.extend(
+        [
+            sys.stdout,
+            getattr(sys, "__stdout__", None),
+            sys.stderr,
+            getattr(sys, "__stderr__", None),
+        ]
+    )
+    text = sep.join(str(arg) for arg in args)
+    if end is not None:
+        text += end
+    for stream in target_streams:
+        if stream is None:
+            continue
+        try:
+            stream.write(text)
+            stream.flush()
+            return
+        except Exception:
+            continue
 
 # Create your views here.
 
@@ -113,7 +141,7 @@ def build_browser_preview_url(file_path, original_name=None):
             img.convert('RGB').save(preview_path, 'JPEG', quality=92)
         return '../media/' + preview_name
     except Exception as e:
-        print(f"[WARNING] Failed to build browser preview for {file_path}: {e}")
+        safe_print(f"[WARNING] Failed to build browser preview for {file_path}: {e}")
         return '../media/' + media_name
 
 
@@ -168,7 +196,7 @@ def get_video_metadata(filename):
                 raise Exception("Cannot open video file")
                 
     except Exception as e:
-        print(f"[WARNING] Could not extract video metadata: {str(e)}")
+        safe_print(f"[WARNING] Could not extract video metadata: {str(e)}")
         # Return empty dict, let caller handle it
         properties = {}
     
@@ -234,7 +262,7 @@ def runPdf2image(request):
         inputPdf = request.FILES['input_pdf'] if 'input_pdf' in request.FILES else None
         if not inputPdf:
             return render(request, "pdf.html", {
-                'error': 'Vui lòng chọn tệp PDF để phân tích.'
+                'error': 'Vui lÃ²ng chá»n tá»‡p PDF Ä‘á»ƒ phÃ¢n tÃ­ch.'
             })
         
         try:
@@ -282,11 +310,11 @@ def runPdf2image(request):
                 return None
 
             poppler_path = find_poppler_path()
-            print(f"[DEBUG] Poppler path: {poppler_path}")
-            print(f"[DEBUG] Converting PDF: {fileurl}")
+            safe_print(f"[DEBUG] Poppler path: {poppler_path}")
+            safe_print(f"[DEBUG] Converting PDF: {fileurl}")
             
             images = convert_from_path(fileurl, poppler_path=poppler_path) if poppler_path else convert_from_path(fileurl)
-            print(f"[DEBUG] Converted {len(images)} pages from PDF")
+            safe_print(f"[DEBUG] Converted {len(images)} pages from PDF")
             
             final_pdf_results = []
             
@@ -295,7 +323,7 @@ def runPdf2image(request):
                 pageName = inputPdf.name.replace(".pdf", "").replace(".PDF", "") + '_page' + str(i) + '.jpg'
                 page_save_path = os.path.join(os.getcwd(), 'media', pageName)
                 images[i].save(page_save_path, 'JPEG')
-                print(f"[DEBUG] Saved page {i}: {page_save_path}")
+                safe_print(f"[DEBUG] Saved page {i}: {page_save_path}")
                 
                 # Generate URL
                 image_url = '../media/' + pageName
@@ -318,7 +346,7 @@ def runPdf2image(request):
                     ),
                 }
                 
-                print(f"[DEBUG] Page {i} result: {res['final_label']} ({res['final_confidence']:.2f}%)")
+                safe_print(f"[DEBUG] Page {i} result: {res['final_label']} ({res['final_confidence']:.2f}%)")
                 
                 final_pdf_results.append((image_url, result_data))
             
@@ -328,11 +356,11 @@ def runPdf2image(request):
             })
             
         except Exception as e:
-            print(f"[ERROR] PDF processing failed: {str(e)}")
+            safe_print(f"[ERROR] PDF processing failed: {str(e)}")
             import traceback
             traceback.print_exc()
             return render(request, "pdf.html", {
-                'error': f'Lỗi xử lý PDF: {str(e)}'
+                'error': f'Lá»—i xá»­ lÃ½ PDF: {str(e)}'
             })
 
     if request.POST.get('passImage'):
@@ -347,19 +375,19 @@ def runPdf2image(request):
                 fileurl = os.path.join(os.getcwd(), 'media', filename)
                 inputImage = inputImageUrl
                 
-                print(f"[DEBUG] Passing PDF page to image analysis: {fileurl}")
+                safe_print(f"[DEBUG] Passing PDF page to image analysis: {fileurl}")
                 
                 return render(request, "image.html", {
                     'input_image': inputImageUrl,
                     'input_image_name': get_display_image_name(fileurl, inputImageUrl),
                 })
         except Exception as e:
-            print(f"[ERROR] Failed to pass PDF page: {str(e)}")
+            safe_print(f"[ERROR] Failed to pass PDF page: {str(e)}")
             return render(request, "image.html", {
                 'result': {
-                    'type': 'Lỗi',
+                    'type': 'Lá»—i',
                     'confidence': '0.00',
-                    'detail': f'Lỗi: {str(e)}'
+                    'detail': f'Lá»—i: {str(e)}'
                 }
             })
     
@@ -392,7 +420,7 @@ def runAnalysis(request):
                 decoded_path = fileurl or ''
 
             if not decoded_path or not os.path.exists(decoded_path):
-                result = {'type': 'Lỗi', 'confidence': '0.00', 'detail': 'Vui lòng tải ảnh hoặc chọn ảnh trước khi chạy.'}
+                result = {'type': 'Lá»—i', 'confidence': '0.00', 'detail': 'Vui lÃ²ng táº£i áº£nh hoáº·c chá»n áº£nh trÆ°á»›c khi cháº¡y.'}
                 return render(request, "image.html",
                               {
                                   'result': result,
@@ -402,7 +430,7 @@ def runAnalysis(request):
                               })
 
             getMetaData(decoded_path)
-            print('fileurl---------------------------',fileurl)
+            safe_print('fileurl---------------------------',fileurl)
             try:
                 res = FID().predict_result_structured(
                     decoded_path,
@@ -410,7 +438,7 @@ def runAnalysis(request):
                     require_hidden=True,
                 )
             except Exception as e:
-                print(f"[ERROR] Image analysis failed: {str(e)}")
+                safe_print(f"[ERROR] Image analysis failed: {str(e)}")
                 return render(
                     request,
                     "image.html",
@@ -468,36 +496,36 @@ def runVideoAnalysis(request):
                 request.session['inputVideoUrl'] = inputVideoUrl
                 request.session['fileVideoUrl'] = fileVideoUrl
                 
-                print(f"[DEBUG] Video uploaded: {fileVideoUrl}")
-                print(f"[DEBUG] Stored in session")
+                safe_print(f"[DEBUG] Video uploaded: {fileVideoUrl}")
+                safe_print(f"[DEBUG] Stored in session")
                 return render(request, "video.html", {'input_video': inputVideoUrl})
             except Exception as e:
-                print(f"[ERROR] Video upload failed: {str(e)}")
+                safe_print(f"[ERROR] Video upload failed: {str(e)}")
                 error_result = {
-                    'result': 'Lỗi',
+                    'result': 'Lá»—i',
                     'f_frames': 0,
-                    'detail': f'Lỗi tải video: {str(e)}'
+                    'detail': f'Lá»—i táº£i video: {str(e)}'
                 }
                 return render(request, "video.html", {'result': error_result})
 
     if request.POST.get('detect'):
-        print(f"[DEBUG] Detect button clicked!")
+        safe_print(f"[DEBUG] Detect button clicked!")
         
         # Retrieve from session
         fileVideoUrl = request.session.get('fileVideoUrl', '')
         inputVideoUrl = request.session.get('inputVideoUrl', '')
         
-        print(f"[DEBUG] Retrieved from session:")
-        print(f"[DEBUG]   fileVideoUrl: {fileVideoUrl}")
-        print(f"[DEBUG]   inputVideoUrl: {inputVideoUrl}")
+        safe_print(f"[DEBUG] Retrieved from session:")
+        safe_print(f"[DEBUG]   fileVideoUrl: {fileVideoUrl}")
+        safe_print(f"[DEBUG]   inputVideoUrl: {inputVideoUrl}")
         
         # Validate video file exists
         if not fileVideoUrl or not os.path.exists(fileVideoUrl):
-            print(f"[ERROR] Video file not found or not uploaded yet")
+            safe_print(f"[ERROR] Video file not found or not uploaded yet")
             error_result = {
-                'result': 'Lỗi',
+                'result': 'Lá»—i',
                 'f_frames': 0,
-                'detail': 'Vui lòng tải video trước khi phân tích.'
+                'detail': 'Vui lÃ²ng táº£i video trÆ°á»›c khi phÃ¢n tÃ­ch.'
             }
             return render(request, "video.html", {
                 'input_video': inputVideoUrl if inputVideoUrl else '',
@@ -505,23 +533,23 @@ def runVideoAnalysis(request):
             })
         
         try:
-            print(f"[DEBUG] Starting video analysis...")
-            print(f"[DEBUG] Video path: {fileVideoUrl}")
+            safe_print(f"[DEBUG] Starting video analysis...")
+            safe_print(f"[DEBUG] Video path: {fileVideoUrl}")
             
             # Get metadata
             properties = get_video_metadata(fileVideoUrl)
-            print(f"[DEBUG] Metadata extracted: {properties}")
+            safe_print(f"[DEBUG] Metadata extracted: {properties}")
             
             # Detect forgery
             result = detect_video_forgery(fileVideoUrl)
             
             # Map result to Vietnamese
             if result.get('result') == 'Authentic':
-                result['result'] = 'Video nguyên bản'
+                result['result'] = 'Video nguyÃªn báº£n'
             elif result.get('result') == 'Forged':
-                result['result'] = 'Video đã qua chỉnh sửa'
+                result['result'] = 'Video Ä‘Ã£ qua chá»‰nh sá»­a'
                 
-            print(f"[DEBUG] Detection result: {result}")
+            safe_print(f"[DEBUG] Detection result: {result}")
             
             return render(request, "video.html", {
                 'input_video': inputVideoUrl,
@@ -529,11 +557,11 @@ def runVideoAnalysis(request):
                 'metadata': properties.items() if properties else []
             })
         except Exception as e:
-            print(f"[ERROR] Video analysis failed: {str(e)}")
+            safe_print(f"[ERROR] Video analysis failed: {str(e)}")
             import traceback
             traceback.print_exc()
             error_result = {
-                'result': 'Lỗi phân tích',
+                'result': 'Lá»—i phÃ¢n tÃ­ch',
                 'f_frames': 0,
                 'detail': str(e)
             }
@@ -543,8 +571,8 @@ def runVideoAnalysis(request):
             })
     
     # Default return if no action
-    print(f"[DEBUG] No action detected in POST")
-    print(f"[DEBUG] POST data keys: {list(request.POST.keys())}")
+    safe_print(f"[DEBUG] No action detected in POST")
+    safe_print(f"[DEBUG] POST data keys: {list(request.POST.keys())}")
     return render(request, "video.html", {})
 
 
@@ -554,9 +582,9 @@ def getImages(request):
     # Validate that an image has been uploaded
     if not fileurl or not os.path.exists(fileurl):
         error_result = {
-            'type': 'Lỗi',
+            'type': 'Lá»—i',
             'confidence': '0.00',
-            'detail': 'Vui lòng tải ảnh và chạy phân tích trước khi sử dụng công cụ forensics.'
+            'detail': 'Vui lÃ²ng táº£i áº£nh vÃ  cháº¡y phÃ¢n tÃ­ch trÆ°á»›c khi sá»­ dá»¥ng cÃ´ng cá»¥ forensics.'
         }
         return render(request, "image.html", {
             'result': error_result,
@@ -571,7 +599,7 @@ def getImages(request):
     
     try:
         if request.POST.get('mask'):
-            print(f"[DEBUG] Running genMask on: {fileurl}")
+            safe_print(f"[DEBUG] Running genMask on: {fileurl}")
             FID().genMask(fileurl)
             outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
             return render(request, "image.html", {
@@ -583,7 +611,7 @@ def getImages(request):
             })
 
         elif request.POST.get('ela'):
-            print(f"[DEBUG] Running show_ela on: {fileurl}")
+            safe_print(f"[DEBUG] Running show_ela on: {fileurl}")
             FID().show_ela(fileurl)
             outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
             return render(request, "image.html", {
@@ -595,7 +623,7 @@ def getImages(request):
             })
 
         elif request.POST.get('edge_map'):
-            print(f"[DEBUG] Running detect_edges on: {fileurl}")
+            safe_print(f"[DEBUG] Running detect_edges on: {fileurl}")
             FID().detect_edges(fileurl)
             outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
             return render(request, "image.html", {
@@ -607,7 +635,7 @@ def getImages(request):
             })
 
         elif request.POST.get('lum_gradiend'):
-            print(f"[DEBUG] Running luminance_gradient on: {fileurl}")
+            safe_print(f"[DEBUG] Running luminance_gradient on: {fileurl}")
             FID().luminance_gradient(fileurl)
             outputImageUrl = f"../media/luminance_gradient.png?t={timestamp}"
             return render(request, "image.html", {
@@ -619,7 +647,7 @@ def getImages(request):
             })
 
         elif request.POST.get('na'):
-            print(f"[DEBUG] Running apply_na on: {fileurl}")
+            safe_print(f"[DEBUG] Running apply_na on: {fileurl}")
             FID().apply_na(fileurl)
             outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
             return render(request, "image.html", {
@@ -631,7 +659,7 @@ def getImages(request):
             })
             
         elif request.POST.get('copy_move_sift'):
-            print(f"[DEBUG] Running copy_move_sift on: {fileurl}")
+            safe_print(f"[DEBUG] Running copy_move_sift on: {fileurl}")
             try:
                 # Lazy import to avoid loading unless requested
                 import website.ImageForgeryDetection.copy_move_sift as sift
@@ -639,9 +667,9 @@ def getImages(request):
                 res_to_use = result
             except Exception as e:
                 # Surface a friendly error in the UI instead of crashing
-                print(f"[ERROR] SIFT analysis failed: {str(e)}")
+                safe_print(f"[ERROR] SIFT analysis failed: {str(e)}")
                 res_to_use = {
-                    'type': 'Phân tích SIFT lỗi',
+                    'type': 'PhÃ¢n tÃ­ch SIFT lá»—i',
                     'confidence': '0.00',
                     'detail': str(e)
                 }
@@ -655,13 +683,13 @@ def getImages(request):
             })
     
     except Exception as e:
-        print(f"[ERROR] Forensic tool error: {str(e)}")
+        safe_print(f"[ERROR] Forensic tool error: {str(e)}")
         import traceback
         traceback.print_exc()
         error_result = {
-            'type': 'Lỗi',
+            'type': 'Lá»—i',
             'confidence': '0.00',
-            'detail': f'Đã xảy ra lỗi khi xử lý: {str(e)}'
+            'detail': f'ÄÃ£ xáº£y ra lá»—i khi xá»­ lÃ½: {str(e)}'
         }
         outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
         return render(request, "image.html", {
@@ -679,3 +707,4 @@ def getImages(request):
         'result': result,
         'metadata': infoDict.items()
     })
+

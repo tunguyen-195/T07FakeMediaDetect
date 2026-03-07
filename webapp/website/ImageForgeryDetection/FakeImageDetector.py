@@ -1,8 +1,9 @@
-import os
+﻿import os
 import json
 import ctypes
 import shutil
 import tempfile
+import sys
 
 try:
     from keras.models import load_model  # type: ignore
@@ -35,6 +36,34 @@ from website.ImageForgeryDetection.hidden_detector_client import (
     predict_hidden_detector,
 )
 
+
+def safe_print(*args, **kwargs):
+    sep = kwargs.pop("sep", " ")
+    end = kwargs.pop("end", "\n")
+    target_streams = []
+    if "file" in kwargs:
+        target_streams.append(kwargs.pop("file"))
+    target_streams.extend(
+        [
+            sys.stdout,
+            getattr(sys, "__stdout__", None),
+            sys.stderr,
+            getattr(sys, "__stderr__", None),
+        ]
+    )
+    text = sep.join(str(arg) for arg in args)
+    if end is not None:
+        text += end
+    for stream in target_streams:
+        if stream is None:
+            continue
+        try:
+            stream.write(text)
+            stream.flush()
+            return
+        except Exception:
+            continue
+
 # Import Benford module + feature contract
 try:
     from website.ImageForgeryDetection.benford_analysis import (
@@ -44,7 +73,7 @@ try:
         HYBRID_FEATURE_ORDER,
     )
 except Exception:
-    print("Warning: benford_analysis module not found. Hybrid mode unavailable.")
+    safe_print("Warning: benford_analysis module not found. Hybrid mode unavailable.")
     extract_benford_features = None
 
     def get_feature_contract():
@@ -191,16 +220,16 @@ class FID:
         try:
             manifest = self._load_active_release_manifest()
             if manifest:
-                print(
+                safe_print(
                     f"Using active release: {manifest['release_id']} "
                     f"(CNN={os.path.basename(manifest['cnn_model_path'])})"
                 )
                 return manifest
         except Exception as e:
-            print(f"Active release unavailable: {e}. Falling back to legacy runtime.")
+            safe_print(f"Active release unavailable: {e}. Falling back to legacy runtime.")
 
         manifest = self._get_legacy_artifact_manifest()
-        print(
+        safe_print(
             f"Using legacy runtime: {manifest['release_id']} "
             f"(CNN={os.path.basename(manifest['cnn_model_path'])})"
         )
@@ -220,7 +249,7 @@ class FID:
                 raise
 
             compat_model_path = self._ensure_compatible_cnn_model(model_path)
-            print(
+            safe_print(
                 "Using runtime-compatible CNN copy: "
                 f"{os.path.basename(compat_model_path)}"
             )
@@ -237,11 +266,11 @@ class FID:
         p_authentic = float(y_pred[0][0])
         p_forged = 1.0 - p_authentic
 
-        print(
+        safe_print(
             f"CNN bundle={manifest['release_id']} "
             f"file={os.path.basename(manifest['cnn_model_path'])}"
         )
-        print(
+        safe_print(
             f"CNN Raw Output: p_authentic={p_authentic:.6f}, "
             f"p_forged={p_forged:.6f}"
         )
@@ -254,7 +283,7 @@ class FID:
         try:
             p_authentic, p_forged = self._run_cnn_inference(fname, runtime_manifest)
         except Exception as e:
-            print(
+            safe_print(
                 f"Preferred CNN bundle failed: {runtime_manifest['release_id']} ({e}). "
                 "Trying legacy runtime."
             )
@@ -266,7 +295,7 @@ class FID:
 
         if extract_benford_features:
             try:
-                print("=== RUNNING HYBRID ANALYSIS (CNN + BENFORD) ===")
+                safe_print("=== RUNNING HYBRID ANALYSIS (CNN + BENFORD) ===")
                 svm, scaler, metadata = self._load_hybrid_components(runtime_manifest)
 
                 benford_feats = extract_benford_features(fname)
@@ -277,7 +306,7 @@ class FID:
                         f"Hybrid feature width mismatch: got={combined_features.shape[1]} expected={len(HYBRID_FEATURE_ORDER)}"
                     )
 
-                print(
+                safe_print(
                     f"Hybrid features shape={combined_features.shape}, feature_schema={metadata['feature_schema_version']}"
                 )
 
@@ -287,8 +316,8 @@ class FID:
                 prediction = "Forged" if prob_forged > 0.5 else "Authentic"
                 confidence = prob_forged if prediction == "Forged" else (1.0 - prob_forged)
 
-                print(f"Hybrid SVM Prob (Forged): {prob_forged:.6f}")
-                print(f"Hybrid Result: {prediction} ({confidence * 100:0.2f}%)")
+                safe_print(f"Hybrid SVM Prob (Forged): {prob_forged:.6f}")
+                safe_print(f"Hybrid Result: {prediction} ({confidence * 100:0.2f}%)")
                 return {
                     "score_forged": prob_forged,
                     "label": prediction,
@@ -298,11 +327,11 @@ class FID:
                 }
 
             except Exception as e:
-                print(
+                safe_print(
                     f"Hybrid unavailable for bundle {runtime_manifest['release_id']}: {e}."
                 )
                 if runtime_manifest.get("bundle_source") != "legacy":
-                    print("Trying legacy runtime bundle for full fallback.")
+                    safe_print("Trying legacy runtime bundle for full fallback.")
                     legacy_manifest = self._get_legacy_artifact_manifest()
                     try:
                         p_authentic, p_forged = self._run_cnn_inference(fname, legacy_manifest)
@@ -320,7 +349,7 @@ class FID:
                         prediction = "Forged" if prob_forged > 0.5 else "Authentic"
                         confidence = prob_forged if prediction == "Forged" else (1.0 - prob_forged)
 
-                        print(f"Legacy hybrid Result: {prediction} ({confidence * 100:0.2f}%)")
+                        safe_print(f"Legacy hybrid Result: {prediction} ({confidence * 100:0.2f}%)")
                         return {
                             "score_forged": prob_forged,
                             "label": prediction,
@@ -329,15 +358,15 @@ class FID:
                             "release_id": legacy_manifest["release_id"],
                         }
                     except Exception as legacy_e:
-                        print(
+                        safe_print(
                             f"Legacy hybrid fallback unavailable: {legacy_e}. "
                             "Falling back to CNN-only."
                         )
 
-        print("=== FALLBACK TO CNN ONLY ===")
+        safe_print("=== FALLBACK TO CNN ONLY ===")
         prediction = "Forged" if p_authentic <= 0.5 else "Authentic"
         confidence = (1.0 - p_authentic) if prediction == "Forged" else p_authentic
-        print(f"CNN Result: {prediction} ({confidence * 100:0.2f}%)")
+        safe_print(f"CNN Result: {prediction} ({confidence * 100:0.2f}%)")
         return {
             "score_forged": float(p_forged),
             "label": prediction,
@@ -348,13 +377,13 @@ class FID:
 
     def _run_benford_rich_detector(self, fname, source_type="image"):
         response = predict_benford_rich(fname, source_type=source_type)
-        print(
+        safe_print(
             f"BenfordRich bundle={response['release_id']} "
             f"schema={response['feature_schema_version']} "
             f"width={response['feature_width']}"
         )
-        print(f"BenfordRich Prob (Forged): {response['forged_score']:.6f}")
-        print(
+        safe_print(f"BenfordRich Prob (Forged): {response['forged_score']:.6f}")
+        safe_print(
             f"BenfordRich Result: {response['label']} "
             f"({response['confidence']:.2f}%)"
         )
@@ -372,10 +401,10 @@ class FID:
         if not USE_BENFORD_RICH_PRIMARY:
             return self._run_legacy_current_detector(fname)
         try:
-            print("=== RUNNING BENFORDRICH PRIMARY DETECTOR ===")
+            safe_print("=== RUNNING BENFORDRICH PRIMARY DETECTOR ===")
             return self._run_benford_rich_detector(fname, source_type=source_type)
         except Exception as e:
-            print(
+            safe_print(
                 f"BenfordRich detector unavailable: {e}. "
                 "Falling back to legacy CNN+SVM detector."
             )
@@ -388,7 +417,7 @@ class FID:
         try:
             p_authentic, p_forged = self._run_cnn_inference(fname, runtime_manifest)
         except Exception as e:
-            print(
+            safe_print(
                 f"Preferred CNN bundle failed for CNN-only path: "
                 f"{runtime_manifest['release_id']} ({e}). Trying legacy runtime."
             )
@@ -416,7 +445,7 @@ class FID:
             sys.modules.setdefault("numpy._core", np.core)
             sys.modules.setdefault("numpy._core.multiarray", np.core.multiarray)
         except Exception as e:
-            print(f"Warning: numpy pickle compatibility shim failed: {e}")
+            safe_print(f"Warning: numpy pickle compatibility shim failed: {e}")
 
     def _normalize_keras_config_value(self, value):
         if isinstance(value, dict):
@@ -493,7 +522,7 @@ class FID:
             metadata = json.load(f)
 
         self._validate_hybrid_metadata(metadata, scaler)
-        print(
+        safe_print(
             f"Hybrid bundle={manifest['release_id']} "
             f"schema={metadata['feature_schema_version']}"
         )
@@ -562,13 +591,13 @@ class FID:
             if train_value and runtime_value and train_value != runtime_value:
                 mismatches.append(f"{key}: train={train_value}, runtime={runtime_value}")
         if mismatches:
-            print(
+            safe_print(
                 "Warning: hybrid artifact environment mismatch detected: "
                 + "; ".join(mismatches)
             )
 
     def predict_result_structured(self, fname, source_type="image", require_hidden=True):
-        print("=== PREDICTING RESULT ===")
+        safe_print("=== PREDICTING RESULT ===")
         current_result = self._run_current_detector(fname, source_type=source_type)
         request_id = create_request_id()
 
@@ -589,13 +618,13 @@ class FID:
             )
             fused["request_id"] = request_id
             fused["current_release_id"] = current_result["release_id"]
-            print(
+            safe_print(
                 f"Final fused result: {fused['final_label']} "
                 f"(score={fused['final_score_forged']:.6f}, confidence={fused['final_confidence']:.2f}%)"
             )
             return fused
         except Exception as hidden_e:
-            print(f"Hidden detector unavailable: {hidden_e}")
+            safe_print(f"Hidden detector unavailable: {hidden_e}")
             if require_hidden:
                 raise
             fallback = build_current_only_result(
@@ -632,7 +661,7 @@ class FID:
         if os.path.exists(DEFAULT_SEGMENTER_WEIGHTS):
             segmenter.load_weights(DEFAULT_SEGMENTER_WEIGHTS)
         else:
-            print("Segmenter weights not found.")
+            safe_print("Segmenter weights not found.")
             return None
 
         testimg = self.convert_to_ela_image(file_path, 90).resize((256, 256))
@@ -652,7 +681,7 @@ class FID:
 
             decoded_path = urllib.parse.unquote(path)
             decoded_path = os.path.abspath(decoded_path)
-            print("-----------path--------------", decoded_path)
+            safe_print("-----------path--------------", decoded_path)
             original_image = Image.open(decoded_path).convert("RGB")
 
             resaved_file_name = resaved_filename
@@ -670,7 +699,7 @@ class FID:
             ela_image = ImageEnhance.Brightness(ela_image).enhance(scale)
             return ela_image
         except Exception as e:
-            print(f"ELA Error: {e}")
+            safe_print(f"ELA Error: {e}")
             return Image.new("RGB", (128, 128))
 
     def show_ela(self, file_path, sl=50):
@@ -727,3 +756,4 @@ class FID:
         na = self.noise_analysis(file_path, 90, intensity)
         na.save(resaved_filename, "JPEG")
         return na
+
