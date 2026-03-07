@@ -4,6 +4,7 @@ import json
 import os
 import re
 import time
+import importlib
 from pathlib import Path
 from typing import Any, Dict
 
@@ -22,6 +23,17 @@ app = Flask(__name__)
 MODEL = None
 MODEL_NAME = "MUN"
 DEVICE = "cpu"
+
+
+CUSTOM_IMPORT_MODULES = [
+    "mmseg.models.data_preprocessor",
+    "mmseg.datasets.transforms.transforms",
+    "mmseg.datasets.transforms.formatting",
+    "mmseg.models.segmentors.npp",
+    "mmseg.models.decode_heads.nu_head",
+    "mmseg.models.losses.iou_loss",
+    "mmpretrain.models.backbones.convnext",
+]
 
 
 def _load_manifest() -> Dict[str, Any]:
@@ -48,6 +60,14 @@ def _ensure_paths() -> Dict[str, Path]:
         "checkpoint_path": checkpoint_path,
         "noiseprint_path": noiseprint_path,
     }
+
+
+def _ensure_custom_registrations() -> None:
+    # Some Windows installs do not reliably execute config-level custom_imports
+    # before the test pipeline is built. Import them explicitly so transforms like
+    # NPPTest and NPPPackSegInputs are always registered.
+    for module_name in CUSTOM_IMPORT_MODULES:
+        importlib.import_module(module_name)
 
 
 def _extract_probability_map(result):
@@ -99,6 +119,8 @@ def load_model_once():
     import torch
     from mmseg.apis import inference_model, init_model  # noqa: F401
 
+    _ensure_custom_registrations()
+
     DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
     MODEL = init_model(str(CONFIG_PATH), str(paths["checkpoint_path"]), device=DEVICE)
     return MODEL
@@ -133,6 +155,7 @@ def predict_image():
 
     try:
         load_model_once()
+        _ensure_custom_registrations()
         from mmseg.apis import inference_model
 
         result = inference_model(MODEL, image_path)

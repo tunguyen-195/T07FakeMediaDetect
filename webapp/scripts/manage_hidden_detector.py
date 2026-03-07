@@ -201,6 +201,10 @@ def start_runtime() -> int:
         print(f"[ERROR] Hidden detector venv missing: {MUN_PYTHON}")
         return 1
 
+    # Keep the vendored mmseg patches in sync on every start so machines that only
+    # pull code changes do not keep stale site-packages copies.
+    copy_vendor_tree()
+
     ok, _detail = check_health(timeout=2.0)
     if ok:
         print(f"Hidden detector already running on port {port}")
