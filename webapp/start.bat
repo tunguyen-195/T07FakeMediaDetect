@@ -66,7 +66,7 @@ if /I "%T07_START_BENFORD_RICH%"=="1" (
     )
 ) else (
     echo.
-    echo [INFO] Skipping BenfordRich detector startup (debug only).
+    echo [INFO] Skipping BenfordRich detector startup - debug only.
 )
 
 echo.
