@@ -15,6 +15,7 @@ from flask import Flask, jsonify, request
 APP_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = APP_ROOT.parents[1]
 VENDOR_ROOT = APP_ROOT / "upstream_vendor"
+VENDOR_MMSEG_ROOT = VENDOR_ROOT / "mmseg"
 MODELS_ROOT = PROJECT_ROOT / "models" / "hidden_detectors" / "mun"
 WEIGHTS_ROOT = MODELS_ROOT / "weights"
 OUTPUT_ROOT = MODELS_ROOT / "outputs"
@@ -45,6 +46,13 @@ REQUIRED_TRANSFORMS = (
     "NPPResizeToMultiple",
     "NPPPackSegInputs",
 )
+VENDOR_PACKAGE_PATHS = {
+    "mmseg.models": VENDOR_MMSEG_ROOT / "models",
+    "mmseg.datasets.transforms": VENDOR_MMSEG_ROOT / "datasets" / "transforms",
+    "mmseg.models.segmentors": VENDOR_MMSEG_ROOT / "models" / "segmentors",
+    "mmseg.models.decode_heads": VENDOR_MMSEG_ROOT / "models" / "decode_heads",
+    "mmseg.models.losses": VENDOR_MMSEG_ROOT / "models" / "losses",
+}
 
 
 def _load_manifest() -> Dict[str, Any]:
@@ -73,13 +81,25 @@ def _ensure_paths() -> Dict[str, Path]:
     }
 
 
+def _prepend_vendor_subpackage_paths() -> None:
+    for package_name, vendor_path in VENDOR_PACKAGE_PATHS.items():
+        package = importlib.import_module(package_name)
+        current_paths = list(getattr(package, "__path__", []))
+        vendor_path_str = str(vendor_path)
+        if vendor_path_str not in current_paths:
+            package.__path__ = [vendor_path_str, *current_paths]
+
+
 def _ensure_custom_registrations() -> None:
     # Some Windows installs do not reliably execute config-level custom_imports
     # before the test pipeline is built. Import them explicitly so transforms like
     # NPPTest and NPPPackSegInputs are always registered.
     importlib.invalidate_caches()
+    _prepend_vendor_subpackage_paths()
+    loaded_from: Dict[str, str] = {}
     for module_name in CUSTOM_IMPORT_MODULES:
-        importlib.import_module(module_name)
+        module = importlib.import_module(module_name)
+        loaded_from[module_name] = str(Path(getattr(module, "__file__", "<unknown>")).resolve())
     from mmseg.registry import TRANSFORMS
 
     missing = [name for name in REQUIRED_TRANSFORMS if name not in TRANSFORMS.module_dict]
@@ -89,6 +109,8 @@ def _ensure_custom_registrations() -> None:
             + ", ".join(missing)
             + ". Loaded mmseg from "
             + str(Path(importlib.import_module("mmseg").__file__).resolve())
+            + ". Custom module sources: "
+            + json.dumps(loaded_from, ensure_ascii=True)
         )
 
 
@@ -177,7 +199,6 @@ def predict_image():
 
     try:
         load_model_once()
-        _ensure_custom_registrations()
         from mmseg.apis import inference_model
 
         result = inference_model(MODEL, image_path)
