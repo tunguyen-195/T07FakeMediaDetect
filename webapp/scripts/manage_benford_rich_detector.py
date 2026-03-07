@@ -59,7 +59,13 @@ def check_health(timeout: float = 5.0) -> tuple[bool, str]:
 
 def running_pid_for_port(port: int) -> int | None:
     try:
-        output = subprocess.check_output(["netstat", "-ano"], text=True, encoding="utf-8", errors="ignore")
+        output = subprocess.check_output(
+            ["netstat", "-ano"],
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            timeout=5,
+        )
     except Exception:
         return None
     needle = f":{port}"
@@ -87,6 +93,7 @@ def running_pids_for_port_windows(port: int) -> list[int]:
             text=True,
             encoding="utf-8",
             errors="ignore",
+            timeout=5,
         )
     except Exception:
         return []
@@ -117,6 +124,7 @@ def running_server_pids_windows() -> list[int]:
             text=True,
             encoding="utf-8",
             errors="ignore",
+            timeout=5,
         )
     except Exception:
         return []
