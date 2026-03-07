@@ -151,6 +151,66 @@ def running_pid_for_port(port: int) -> int | None:
     return None
 
 
+def running_pids_for_port_windows(port: int) -> list[int]:
+    if os.name != "nt":
+        return []
+    script = (
+        f"Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue | "
+        "Select-Object -ExpandProperty OwningProcess"
+    )
+    try:
+        output = subprocess.check_output(
+            ["powershell", "-NoProfile", "-Command", script],
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+        )
+    except Exception:
+        return []
+
+    pids = []
+    for line in output.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            pids.append(int(line))
+        except ValueError:
+            continue
+    return sorted(set(pids))
+
+
+def running_mun_server_pids_windows() -> list[int]:
+    if os.name != "nt":
+        return []
+    server_marker = str(MUN_SERVER).replace("\\", "\\\\")
+    script = (
+        "Get-CimInstance Win32_Process | "
+        f"Where-Object {{ $_.CommandLine -like '*{server_marker}*' }} | "
+        "Select-Object -ExpandProperty ProcessId"
+    )
+    try:
+        output = subprocess.check_output(
+            ["powershell", "-NoProfile", "-Command", script],
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+        )
+    except Exception:
+        return []
+
+    pids = []
+    for line in output.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            pids.append(int(line))
+        except ValueError:
+            continue
+    return sorted(set(pids))
+
+
 def install_runtime() -> None:
     ensure_venv()
     pip_install(["install", "--upgrade", "pip"])
@@ -187,9 +247,11 @@ def print_status() -> int:
         else:
             print(f"  {name}: MISSING - {target.name}")
     pid = running_pid_for_port(port)
-    print(f"  port_{port}: {'RUNNING' if pid else 'STOPPED'}")
-    if pid:
-        print(f"  pid: {pid}")
+    extra_pids = running_pids_for_port_windows(port)
+    all_pids = sorted(set(([pid] if pid else []) + extra_pids))
+    print(f"  port_{port}: {'RUNNING' if all_pids else 'STOPPED'}")
+    if all_pids:
+        print(f"  pid: {', '.join(str(p) for p in all_pids)}")
     print(f"  health: {'OK' if ok else 'FAILED'} - {detail}")
     return 0 if (MUN_PYTHON.exists() and ok) else 1
 
@@ -239,14 +301,22 @@ def start_runtime() -> int:
 def stop_runtime() -> int:
     manifest = load_manifest()
     port = int(manifest["sidecar"]["port"])
+    pid_candidates = []
     pid = running_pid_for_port(port)
-    if not pid:
+    if pid:
+        pid_candidates.append(pid)
+    pid_candidates.extend(running_pids_for_port_windows(port))
+    pid_candidates.extend(running_mun_server_pids_windows())
+    pid_candidates = sorted(set(pid_candidates))
+
+    if not pid_candidates:
         print(f"Hidden detector already stopped on port {port}")
         return 0
 
-    subprocess.run(["taskkill", "/PID", str(pid), "/F"], check=False)
+    for candidate in pid_candidates:
+        subprocess.run(["taskkill", "/PID", str(candidate), "/F"], check=False)
     time.sleep(1)
-    print(f"Hidden detector stopped (pid={pid})")
+    print(f"Hidden detector stopped (pid={', '.join(str(p) for p in pid_candidates)})")
     return 0
 
 
