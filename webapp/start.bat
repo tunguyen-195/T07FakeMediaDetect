@@ -75,6 +75,7 @@ echo [INFO] Starting hidden MUN detector...
 if %errorlevel% neq 0 (
     echo [ERROR] Hidden MUN detector failed to start.
     echo Dev mode is fail-fast. Fix the hidden detector before retrying.
+    echo Check log: hidden_detector_mun.log
     pause
     exit /b 1
 )

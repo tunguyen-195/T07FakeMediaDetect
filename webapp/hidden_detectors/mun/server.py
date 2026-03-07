@@ -217,4 +217,7 @@ if __name__ == "__main__":
     manifest = _load_manifest()
     host = manifest["sidecar"]["host"]
     port = int(manifest["sidecar"]["port"])
+    print("Preloading MUN model...", flush=True)
+    load_model_once()
+    print(f"MUN model ready on device={DEVICE}", flush=True)
     app.run(host=host, port=port)

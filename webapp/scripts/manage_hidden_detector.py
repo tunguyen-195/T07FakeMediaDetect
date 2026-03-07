@@ -36,6 +36,11 @@ REQUIRED_RUNTIME_IMPORTS = {
     "PIL": "Pillow==9.5.0",
     "mmengine": "mmengine==0.10.4",
 }
+STARTUP_DEADLINE_SECONDS = 180
+HEALTH_RETRY_INTERVAL_SECONDS = 2
+HEALTH_START_TIMEOUT_SECONDS = 5.0
+HEALTH_STATUS_TIMEOUT_SECONDS = 2.0
+LOG_TAIL_LINES = 40
 
 
 def parse_args() -> argparse.Namespace:
@@ -200,6 +205,16 @@ def check_health(timeout: float = 5.0) -> tuple[bool, str]:
         return False, str(exc)
 
 
+def tail_log_lines(max_lines: int = LOG_TAIL_LINES) -> str:
+    if not LOG_PATH.exists():
+        return ""
+    try:
+        lines = LOG_PATH.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except Exception:
+        return ""
+    return "\n".join(lines[-max_lines:])
+
+
 def running_pid_for_port(port: int) -> int | None:
     try:
         output = subprocess.check_output(
@@ -308,7 +323,7 @@ def install_runtime() -> None:
 def print_status() -> int:
     manifest = load_manifest()
     port = int(manifest["sidecar"]["port"])
-    ok, detail = check_health(timeout=2.0)
+    ok, detail = check_health(timeout=HEALTH_STATUS_TIMEOUT_SECONDS)
 
     print("[Hidden Detector]")
     print(f"  venv: {'OK' if MUN_PYTHON.exists() else 'MISSING'} - {MUN_PYTHON}")
@@ -350,7 +365,7 @@ def start_runtime() -> int:
     # pull code changes do not keep stale site-packages copies.
     copy_vendor_tree()
 
-    ok, _detail = check_health(timeout=2.0)
+    ok, _detail = check_health(timeout=HEALTH_STATUS_TIMEOUT_SECONDS)
     if ok:
         print(f"Hidden detector already running on port {port}")
         return 0
@@ -361,7 +376,7 @@ def start_runtime() -> int:
     if os.name == "nt":
         creationflags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
 
-    subprocess.Popen(
+    process = subprocess.Popen(
         [str(MUN_PYTHON), str(MUN_SERVER)],
         cwd=str(WEBAPP_ROOT),
         stdout=log_handle,
@@ -369,15 +384,30 @@ def start_runtime() -> int:
         creationflags=creationflags,
         close_fds=False,
     )
+    log_handle.close()
 
-    for _ in range(60):
-        time.sleep(1)
-        ok, detail = check_health(timeout=2.0)
+    deadline = time.time() + STARTUP_DEADLINE_SECONDS
+    time.sleep(1)
+    while time.time() < deadline:
+        if process.poll() is not None:
+            print(f"Hidden detector exited early with code {process.returncode}.")
+            tail = tail_log_lines()
+            if tail:
+                print("--- Hidden detector log tail ---")
+                print(tail)
+            return 1
+
+        ok, detail = check_health(timeout=HEALTH_START_TIMEOUT_SECONDS)
         if ok:
             print(f"Hidden detector started successfully on device={detail}")
             return 0
+        time.sleep(HEALTH_RETRY_INTERVAL_SECONDS)
 
-    print("Hidden detector failed to start within timeout.")
+    print(f"Hidden detector failed to start within timeout ({STARTUP_DEADLINE_SECONDS}s).")
+    tail = tail_log_lines()
+    if tail:
+        print("--- Hidden detector log tail ---")
+        print(tail)
     return 1
 
 
