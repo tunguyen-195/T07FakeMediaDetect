@@ -136,7 +136,27 @@ DEFAULT_SVM_PATH = os.path.join(MODELS_ROOT, "hybrid_svm_model.pkl")
 DEFAULT_SCALER_PATH = os.path.join(MODELS_ROOT, "hybrid_scaler.pkl")
 DEFAULT_METADATA_PATH = os.path.join(MODELS_ROOT, "hybrid_metadata.json")
 ACTIVE_RELEASE_PATH = os.path.join(MODELS_ROOT, "active_release.json")
-USE_BENFORD_RICH_PRIMARY = os.environ.get("T07_USE_BENFORD_RICH_PRIMARY", "0") == "1"
+
+
+def resolve_primary_detector_mode(environ=None):
+    env = environ if environ is not None else os.environ
+    explicit_mode = str(env.get("T07_PRIMARY_IMAGE_DETECTOR", "")).strip().lower()
+    if explicit_mode:
+        if explicit_mode in {"cnn_only", "legacy_current", "benford_rich"}:
+            return explicit_mode
+        safe_print(
+            f"Warning: unsupported T07_PRIMARY_IMAGE_DETECTOR={explicit_mode}. "
+            "Falling back to cnn_only."
+        )
+        return "cnn_only"
+
+    if str(env.get("T07_USE_BENFORD_RICH_PRIMARY", "0")).strip() == "1":
+        return "benford_rich"
+
+    return "cnn_only"
+
+
+PRIMARY_DETECTOR_MODE = resolve_primary_detector_mode()
 DEFAULT_LEGACY_ARTIFACTS = {
     "release_id": "legacy_canonical",
     "bundle_source": "legacy",
@@ -397,20 +417,29 @@ class FID:
             "feature_width": int(response["feature_width"]),
         }
 
-    def _run_current_detector(self, fname, source_type="image"):
-        if not USE_BENFORD_RICH_PRIMARY:
+    def _run_primary_detector(self, fname, source_type="image"):
+        if PRIMARY_DETECTOR_MODE == "cnn_only":
+            safe_print("=== RUNNING CNN-ONLY PRIMARY DETECTOR ===")
+            return self._run_cnn_only_detector(fname)
+
+        if PRIMARY_DETECTOR_MODE == "legacy_current":
+            safe_print("=== RUNNING LEGACY CURRENT PRIMARY DETECTOR ===")
             return self._run_legacy_current_detector(fname)
+
         try:
             safe_print("=== RUNNING BENFORDRICH PRIMARY DETECTOR ===")
             return self._run_benford_rich_detector(fname, source_type=source_type)
         except Exception as e:
             safe_print(
                 f"BenfordRich detector unavailable: {e}. "
-                "Falling back to legacy CNN+SVM detector."
+                "Falling back to CNN-only detector."
             )
-            legacy = self._run_legacy_current_detector(fname)
-            legacy["source"] = f"legacy_{legacy['source']}"
-            return legacy
+            fallback = self._run_cnn_only_detector(fname)
+            fallback["source"] = f"fallback_{fallback['source']}"
+            return fallback
+
+    def _run_current_detector(self, fname, source_type="image"):
+        return self._run_primary_detector(fname, source_type=source_type)
 
     def _run_cnn_only_detector(self, fname):
         runtime_manifest = self._get_preferred_artifact_manifest()
@@ -598,7 +627,8 @@ class FID:
 
     def predict_result_structured(self, fname, source_type="image", require_hidden=True):
         safe_print("=== PREDICTING RESULT ===")
-        current_result = self._run_current_detector(fname, source_type=source_type)
+        safe_print(f"Primary detector mode: {PRIMARY_DETECTOR_MODE}")
+        current_result = self._run_primary_detector(fname, source_type=source_type)
         request_id = create_request_id()
 
         try:

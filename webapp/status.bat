@@ -23,6 +23,7 @@ echo [CHECK 2/7] Virtual Environment (.venv-tf):
 if exist ".venv-tf\Scripts\python.exe" (
     echo   Status: OK
     .venv-tf\Scripts\python.exe --version
+    echo   Default primary detector: cnn_only
 ) else (
     echo   Status: NOT FOUND
     echo   Run install.bat to create the virtual environment.
@@ -38,12 +39,12 @@ if exist ".venv-tf\Scripts\python.exe" (
 )
 echo.
 
-echo [CHECK 4/7] BenfordRich Detector:
+echo [CHECK 4/7] BenfordRich Detector (debug/benchmark):
 if exist ".venv-tf\Scripts\python.exe" (
     .venv-tf\Scripts\python.exe scripts\manage_benford_rich_detector.py status
     if %errorlevel% neq 0 (
         echo   Status: FAILED
-        echo   BenfordRich is experimental; run install.bat or start.bat to repair it when benchmarking.
+        echo   BenfordRich is optional; run install.bat or set T07_START_BENFORD_RICH=1 when benchmarking.
     )
 ) else (
     echo   Status: UNKNOWN

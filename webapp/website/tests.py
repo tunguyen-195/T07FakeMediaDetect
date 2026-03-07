@@ -7,6 +7,9 @@ from website.ImageForgeryDetection.fusion import (
     build_current_only_result,
     fuse_detector_votes,
 )
+from website.ImageForgeryDetection.FakeImageDetector import (
+    resolve_primary_detector_mode,
+)
 
 
 class FusionLogicTests(SimpleTestCase):
@@ -42,3 +45,26 @@ class FusionLogicTests(SimpleTestCase):
         result = fuse_detector_votes(0.55, "hybrid", 0.51, LABEL_FORGED)
         self.assertEqual(result["final_label"], LABEL_REVIEW)
         self.assertTrue(result["requires_review"])
+
+
+class PrimaryDetectorModeTests(SimpleTestCase):
+    def test_default_primary_detector_is_cnn_only(self):
+        mode = resolve_primary_detector_mode({})
+        self.assertEqual(mode, "cnn_only")
+
+    def test_explicit_primary_detector_env_wins(self):
+        mode = resolve_primary_detector_mode(
+            {
+                "T07_PRIMARY_IMAGE_DETECTOR": "legacy_current",
+                "T07_USE_BENFORD_RICH_PRIMARY": "1",
+            }
+        )
+        self.assertEqual(mode, "legacy_current")
+
+    def test_legacy_benford_flag_kept_for_backward_compatibility(self):
+        mode = resolve_primary_detector_mode(
+            {
+                "T07_USE_BENFORD_RICH_PRIMARY": "1",
+            }
+        )
+        self.assertEqual(mode, "benford_rich")

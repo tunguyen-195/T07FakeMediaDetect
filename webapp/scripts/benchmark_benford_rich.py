@@ -13,6 +13,11 @@ if str(WEBAPP_ROOT) not in sys.path:
     sys.path.insert(0, str(WEBAPP_ROOT))
 
 from website.ImageForgeryDetection.FakeImageDetector import FID
+from website.ImageForgeryDetection.fusion import fuse_detector_votes
+from website.ImageForgeryDetection.hidden_detector_client import (
+    create_request_id,
+    predict_hidden_detector,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -83,7 +88,7 @@ def evaluate_sample_set(sample_dir: Path, output_root: Path) -> dict:
         "current_cnn_only": [],
         "current_hybrid": [],
         "benford_rich_only": [],
-        "benford_rich_mun_fused": [],
+        "cnn_only_mun_fused": [],
     }
 
     for row in df.to_dict(orient="records"):
@@ -96,12 +101,25 @@ def evaluate_sample_set(sample_dir: Path, output_root: Path) -> dict:
         cnn = fid.predict_cnn_only_structured(str(image_path))
         legacy = fid.predict_legacy_current_structured(str(image_path))
         benford = fid.predict_benford_rich_structured(str(image_path), source_type="image")
-        fused = fid.predict_result_structured(str(image_path), source_type="image", require_hidden=True)
+        hidden = predict_hidden_detector(
+            str(image_path),
+            source_type="image",
+            request_id=create_request_id(),
+        )
+        fused = fuse_detector_votes(
+            cnn["score_forged"],
+            cnn["source"],
+            hidden["forged_score"],
+            hidden["label"],
+            hidden_mask_path=hidden.get("mask_path"),
+            hidden_model_name=hidden.get("model_name"),
+            hidden_latency_ms=hidden.get("latency_ms"),
+        )
 
         scores["current_cnn_only"].append(float(cnn["score_forged"]))
         scores["current_hybrid"].append(float(legacy["score_forged"]))
         scores["benford_rich_only"].append(float(benford["score_forged"]))
-        scores["benford_rich_mun_fused"].append(float(fused["final_score_forged"]))
+        scores["cnn_only_mun_fused"].append(float(fused["final_score_forged"]))
 
         prediction_rows.append(
             {

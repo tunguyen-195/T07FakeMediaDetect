@@ -79,9 +79,11 @@ start.bat
 
 What `start.bat` does for the Windows dev flow:
 - validates the active TensorFlow image/PDF bundle
+- runs the default image decision path as `CNN-only + hidden MUN`
 - starts the hidden MUN detector on `127.0.0.1:8011`
 - fails fast if the hidden detector is not healthy
 - starts Django on `127.0.0.1:8001`
+- keeps BenfordRich as an optional debug/benchmark detector (`set T07_START_BENFORD_RICH=1`)
 
 5. **Access the application**
 

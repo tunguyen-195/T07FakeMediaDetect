@@ -7,9 +7,16 @@ title T07FakeMediaDetect - Start
 echo.
 echo ========================================================
 echo  T07FakeMediaDetect - Start
-echo  Django + active image/PDF bundle + BenfordRich + hidden MUN detector
+echo  Django + active image/PDF bundle + CNN-only primary + hidden MUN detector
 echo ========================================================
 echo.
+
+if not defined T07_PRIMARY_IMAGE_DETECTOR (
+    set "T07_PRIMARY_IMAGE_DETECTOR=cnn_only"
+)
+if not defined T07_START_BENFORD_RICH (
+    set "T07_START_BENFORD_RICH=0"
+)
 
 if not exist ".venv-tf\Scripts\python.exe" (
     echo [ERROR] .venv-tf is missing.
@@ -49,12 +56,17 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo.
-echo [INFO] Starting BenfordRich detector...
-.venv-tf\Scripts\python.exe scripts\manage_benford_rich_detector.py start
-if %errorlevel% neq 0 (
-    echo [WARNING] BenfordRich detector failed to start.
-    echo BenfordRich is experimental and the default app runtime will continue without it.
+if /I "%T07_START_BENFORD_RICH%"=="1" (
+    echo.
+    echo [INFO] Starting BenfordRich detector...
+    .venv-tf\Scripts\python.exe scripts\manage_benford_rich_detector.py start
+    if %errorlevel% neq 0 (
+        echo [WARNING] BenfordRich detector failed to start.
+        echo BenfordRich is experimental and the default app runtime will continue without it.
+    )
+) else (
+    echo.
+    echo [INFO] Skipping BenfordRich detector startup (debug only).
 )
 
 echo.
@@ -79,8 +91,12 @@ echo.
 echo Server URLs:
 echo   - http://127.0.0.1:8001/
 echo   - http://localhost:8001/
+echo Primary detector mode:
+echo   - %T07_PRIMARY_IMAGE_DETECTOR%
+if /I "%T07_START_BENFORD_RICH%"=="1" (
 echo BenfordRich detector health:
 echo   - http://127.0.0.1:8012/health
+)
 echo Hidden detector health:
 echo   - http://127.0.0.1:8011/health
 echo.
