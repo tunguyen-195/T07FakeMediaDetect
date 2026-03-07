@@ -66,6 +66,14 @@
                                     onerror="this.src='https://via.placeholder.com/600x400/0f172a/06b6d4?text=Chọn+ảnh+để+phân+tích'"
                                     style="object-fit: contain;">
                             </div>
+                            <div id="selectedFileNameBox"
+                                style="margin-top: -0.5rem; margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.95rem;">
+                                {% if input_image_name %}
+                                Tệp đang chọn: <strong id="selectedFileName">{{ input_image_name }}</strong>
+                                {% else %}
+                                Tệp đang chọn: <strong id="selectedFileName">Chưa có ảnh nào</strong>
+                                {% endif %}
+                            </div>
 
                             <button class="btn btn-primary btn-block" type="submit" name="run" value="run"
                                 style="padding: 0.875rem; font-size: 1rem; font-weight: 600;">
@@ -190,8 +198,12 @@
 
         var loadFile = function (event) {
             var input_image = document.getElementById('upl_img');
+            var selectedFileName = document.getElementById('selectedFileName');
             if (event.target.files && event.target.files[0]) {
                 input_image.src = URL.createObjectURL(event.target.files[0]);
+                if (selectedFileName) {
+                    selectedFileName.textContent = event.target.files[0].name;
+                }
             }
         };
 

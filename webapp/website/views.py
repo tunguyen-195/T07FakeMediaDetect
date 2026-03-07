@@ -117,6 +117,14 @@ def build_browser_preview_url(file_path, original_name=None):
         return '../media/' + media_name
 
 
+def get_display_image_name(file_path='', preview_url=''):
+    if file_path:
+        return os.path.basename(file_path)
+    if preview_url:
+        return os.path.basename(preview_url)
+    return ''
+
+
 def get_video_metadata(filename):
     """Extract video metadata using OpenCV (fallback if hachoir not available)"""
     properties = {}
@@ -342,7 +350,8 @@ def runPdf2image(request):
                 print(f"[DEBUG] Passing PDF page to image analysis: {fileurl}")
                 
                 return render(request, "image.html", {
-                    'input_image': inputImageUrl
+                    'input_image': inputImageUrl,
+                    'input_image_name': get_display_image_name(fileurl, inputImageUrl),
                 })
         except Exception as e:
             print(f"[ERROR] Failed to pass PDF page: {str(e)}")
@@ -385,7 +394,12 @@ def runAnalysis(request):
             if not decoded_path or not os.path.exists(decoded_path):
                 result = {'type': 'Lỗi', 'confidence': '0.00', 'detail': 'Vui lòng tải ảnh hoặc chọn ảnh trước khi chạy.'}
                 return render(request, "image.html",
-                              {'result': result, 'input_image': inputImageUrl or '', 'metadata': infoDict.items()})
+                              {
+                                  'result': result,
+                                  'input_image': inputImageUrl or '',
+                                  'input_image_name': get_display_image_name(fileurl, inputImageUrl or ''),
+                                  'metadata': infoDict.items()
+                              })
 
             getMetaData(decoded_path)
             print('fileurl---------------------------',fileurl)
@@ -406,6 +420,7 @@ def runAnalysis(request):
                             f"Details: {str(e)}"
                         ),
                         'input_image': inputImageUrl or inputImage or '',
+                        'input_image_name': get_display_image_name(fileurl, inputImageUrl or inputImage or ''),
                         'metadata': infoDict.items(),
                     },
                 )
@@ -429,7 +444,12 @@ def runAnalysis(request):
             inputImageUrl = ''
             
             return render(request, "image.html",
-                          {'result': result, 'input_image': inputImage, 'metadata': infoDict.items()})
+                          {
+                              'result': result,
+                              'input_image': inputImage,
+                              'input_image_name': get_display_image_name(fileurl, inputImage),
+                              'metadata': infoDict.items()
+                          })
 
 
 def runVideoAnalysis(request):
@@ -541,6 +561,7 @@ def getImages(request):
         return render(request, "image.html", {
             'result': error_result,
             'input_image': inputImage or '',
+            'input_image_name': get_display_image_name(fileurl, inputImage),
             'metadata': infoDict.items()
         })
     
@@ -556,6 +577,7 @@ def getImages(request):
             return render(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
+                'input_image_name': get_display_image_name(fileurl, inputImage),
                 'result': result,
                 'metadata': infoDict.items()
             })
@@ -567,6 +589,7 @@ def getImages(request):
             return render(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
+                'input_image_name': get_display_image_name(fileurl, inputImage),
                 'result': result,
                 'metadata': infoDict.items()
             })
@@ -578,6 +601,7 @@ def getImages(request):
             return render(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
+                'input_image_name': get_display_image_name(fileurl, inputImage),
                 'result': result,
                 'metadata': infoDict.items()
             })
@@ -589,6 +613,7 @@ def getImages(request):
             return render(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
+                'input_image_name': get_display_image_name(fileurl, inputImage),
                 'result': result,
                 'metadata': infoDict.items()
             })
@@ -600,6 +625,7 @@ def getImages(request):
             return render(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
+                'input_image_name': get_display_image_name(fileurl, inputImage),
                 'result': result,
                 'metadata': infoDict.items()
             })
@@ -623,6 +649,7 @@ def getImages(request):
             return render(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
+                'input_image_name': get_display_image_name(fileurl, inputImage),
                 'result': res_to_use,
                 'metadata': infoDict.items()
             })
@@ -640,6 +667,7 @@ def getImages(request):
         return render(request, "image.html", {
             'url': outputImageUrl,
             'input_image': inputImage,
+            'input_image_name': get_display_image_name(fileurl, inputImage),
             'result': error_result,
             'metadata': infoDict.items()
         })
@@ -647,6 +675,7 @@ def getImages(request):
     # If no action matched, return current state
     return render(request, "image.html", {
         'input_image': inputImage,
+        'input_image_name': get_display_image_name(fileurl, inputImage),
         'result': result,
         'metadata': infoDict.items()
     })
