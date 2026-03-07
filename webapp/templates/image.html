@@ -16,7 +16,7 @@
         integrity="sha512-JxBFHHd+xyHl++SdVJYCCgxGPJKCTTaqndOl/n12qI73hgj7PuGuYDUcCgtdSHTeXSHCtW4us4Qmv+xwPqKVjQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script>
-        var RESULT_DATA = {% if result %}{ "type": "{{ result.type|escapejs }}", "confidence": "{{ result.confidence|escapejs }}" } {% else %} null{% endif %};
+        var RESULT_DATA = {% if result %}{ "type": "{{ result.type|escapejs }}", "confidence": "{{ result.confidence|escapejs }}", "final_label": "{{ result.final_label|default:''|escapejs }}", "requires_review": {% if result.requires_review %}true{% else %}false{% endif %} } {% else %} null{% endif %};
     </script>
 </head>
 
@@ -79,9 +79,20 @@
                                             style="font-size: 1.2rem;"></b></p>
                                     <p style="margin-bottom: 0;">Độ tin cậy: <b id="resultConfidence"
                                             style="font-size: 1.2rem;"></b></p>
+                                    {% if result.detail %}
+                                    <p style="margin-top: 0.75rem; margin-bottom: 0; color: var(--text-secondary);">
+                                        {{ result.detail }}
+                                    </p>
+                                    {% endif %}
                                 </div>
                             </div>
                         </form>
+
+                        {% if error %}
+                        <div class="alert alert-warning mt-3" role="alert">
+                            {{ error }}
+                        </div>
+                        {% endif %}
 
                         {% if metadata %}
                         <div class="mt-4">
@@ -193,8 +204,10 @@
             confEl.textContent = RESULT_DATA.confidence + '%';
 
             // Set color based on result type
-            if (RESULT_DATA.type === 'Ảnh nguyên bản') {
+            if (RESULT_DATA.final_label === 'Authentic') {
                 typeEl.style.color = 'var(--primary-light)';
+            } else if (RESULT_DATA.final_label === 'Review') {
+                typeEl.style.color = '#f59e0b';
             } else {
                 typeEl.style.color = '#ef4444';
             }
@@ -202,8 +215,8 @@
             // Show forensic section
             document.getElementById('imagegenerationSecton').style.display = 'block';
 
-            // Show mask button for forged images
-            if (RESULT_DATA.type === 'Ảnh đã qua chỉnh sửa') {
+            // Show mask button for forged/review images
+            if (RESULT_DATA.final_label === 'Forged' || RESULT_DATA.final_label === 'Review') {
                 document.getElementById('maskButton').style.display = 'inline-block';
             }
         } else {

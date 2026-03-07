@@ -161,6 +161,16 @@ def pdf(request):
     return render(request, "pdf.html")
 
 
+def to_friendly_image_label(result_label):
+    if result_label == 'Authentic':
+        return '\u1ea2nh nguy\u00ean b\u1ea3n'
+    if result_label == 'Forged':
+        return '\u1ea2nh \u0111\u00e3 qua ch\u1ec9nh s\u1eeda'
+    if result_label == 'Review':
+        return 'Nghi ng\u1edd - c\u1ea7n ki\u1ec3m tra th\u00eam'
+    return result_label
+
+
 #pdf2image for loop
 def runPdf2image(request):
     global filePdfUrl, inputPdfUrl, fileurl, inputImageUrl
@@ -237,11 +247,16 @@ def runPdf2image(request):
                 imagefileurl = os.path.join(os.getcwd(), 'media', pageName)
                 
                 # Analyze each page
-                res = FID().predict_result(imagefileurl)
-                friendly_type = 'Ảnh nguyên bản' if res[0] == 'Authentic' else 'Ảnh đã qua chỉnh sửa'
-                result_data = {'type': friendly_type, 'confidence': res[1]}
+                res = FID().predict_result_structured(imagefileurl, source_type="pdf_page", require_hidden=True)
+                friendly_type = to_friendly_image_label(res['final_label'])
+                result_data = {
+                    'type': friendly_type,
+                    'confidence': f"{res['final_confidence']:0.2f}",
+                    'requires_review': res['requires_review'],
+                    'final_label': res['final_label'],
+                }
                 
-                print(f"[DEBUG] Page {i} result: {res[0]} ({res[1]}%)")
+                print(f"[DEBUG] Page {i} result: {res['final_label']} ({res['final_confidence']:.2f}%)")
                 
                 final_pdf_results.append((image_url, result_data))
             
@@ -319,12 +334,38 @@ def runAnalysis(request):
 
             getMetaData(decoded_path)
             print('fileurl---------------------------',fileurl)
-            res = FID().predict_result(decoded_path)
-
-            is_authentic = (res[0] == 'Authentic')
-            friendly_type = 'Ảnh nguyên bản' if is_authentic else 'Ảnh đã qua chỉnh sửa'
+            try:
+                res = FID().predict_result_structured(
+                    decoded_path,
+                    source_type="image",
+                    require_hidden=True,
+                )
+            except Exception as e:
+                print(f"[ERROR] Image analysis failed: {str(e)}")
+                return render(
+                    request,
+                    "image.html",
+                    {
+                        'error': (
+                            "Hidden detector MUN is unavailable or returned an error. "
+                            f"Details: {str(e)}"
+                        ),
+                        'input_image': inputImageUrl or inputImage or '',
+                        'metadata': infoDict.items(),
+                    },
+                )
+            friendly_type = to_friendly_image_label(res['final_label'])
             
-            result = {'type': friendly_type, 'confidence': res[1]}
+            result = {
+                'type': friendly_type,
+                'confidence': f"{res['final_confidence']:0.2f}",
+                'requires_review': res['requires_review'],
+                'final_label': res['final_label'],
+                'detail': (
+                    '\u1ea2nh n\u00e0y c\u1ea7n ki\u1ec3m tra th\u00eam do hai detector ch\u01b0a \u0111\u1ed3ng thu\u1eadn ho\u00e0n to\u00e0n.'
+                    if res['requires_review'] else ''
+                ),
+            }
             
             inputImage = inputImageUrl
             inputImageUrl = ''

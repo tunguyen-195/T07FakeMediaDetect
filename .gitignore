@@ -28,6 +28,7 @@ MANIFEST
 # Virtual Environment
 .venv/
 .venv-tf/
+.venv-mun/
 venv/
 ENV/
 env/
@@ -146,6 +147,10 @@ webapp/models.rar
 
 # Poppler binaries (installed via install_poppler.bat)
 webapp/poppler/
+
+# Hidden MUN detector runtime artifacts
+webapp/models/hidden_detectors/
+webapp/hidden_detector_mun.log
 
 # Allow the committed demo runbook while keeping the rest of docs ignored
 !docs/

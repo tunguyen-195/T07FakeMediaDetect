@@ -1,0 +1,12 @@
+torch==2.0.1
+torchvision==0.15.2
+numpy==1.24.4
+Pillow==9.5.0
+opencv-python-headless==4.9.0.80
+Flask==3.0.3
+gdown==5.2.1
+mmengine==0.10.4
+mmcv-lite==2.0.1
+mmsegmentation==1.2.2
+mmpretrain==1.0.0
+mmdet==3.3.0

@@ -1,47 +1,37 @@
 @echo off
-:: ====================================================================
-:: T07FakeMediaDetect - Start Script
-:: Hệ thống phát hiện tệp đa phương tiện đã bị chỉnh sửa T07
-:: ====================================================================
+setlocal
 
 COLOR 0A
-title T07FakeMediaDetect - Starting Server
+title T07FakeMediaDetect - Start
 
 echo.
 echo ========================================================
-echo  T07FakeMediaDetect - Image/Video Forgery Detection
-echo  Hệ thống phát hiện tệp đa phương tiện giả mạo T07
+echo  T07FakeMediaDetect - Start
+echo  Django + active image/PDF bundle + hidden MUN detector
 echo ========================================================
 echo.
 
-:: Check if virtual environment exists
 if not exist ".venv-tf\Scripts\python.exe" (
-    echo [ERROR] Virtual environment not found!
-    echo Please ensure .venv-tf folder exists with Python installed.
-    echo.
+    echo [ERROR] .venv-tf is missing.
+    echo Run install.bat first.
     pause
     exit /b 1
 )
 
-:: Check if models folder exists
 if not exist "models" (
-    echo [WARNING] Models folder not found!
-    echo Creating models folder...
+    echo [INFO] models folder missing, creating it now...
     mkdir models
 )
 
-echo [INFO] Activating virtual environment...
-
-echo [INFO] Checking Python version...
+echo [INFO] Python in .venv-tf:
 .venv-tf\Scripts\python.exe --version
 
 echo.
-echo [INFO] Ensuring Poppler is available for PDF analysis...
+echo [INFO] Ensuring Poppler is available...
 if not exist "poppler\Library\bin\pdfinfo.exe" (
     call install_poppler.bat --no-pause
     if %errorlevel% neq 0 (
-        echo.
-        echo [ERROR] Poppler setup failed. Cannot start PDF-ready dev environment.
+        echo [ERROR] Poppler setup failed.
         pause
         exit /b 1
     )
@@ -53,9 +43,18 @@ echo.
 echo [INFO] Validating active image/PDF runtime...
 .venv-tf\Scripts\python.exe scripts\check_dev_runtime.py --mode start
 if %errorlevel% neq 0 (
-    echo.
     echo [ERROR] Active image/PDF runtime is not ready.
-    echo Run install.bat again or verify models\active_release.json and release files.
+    echo Run install.bat again or repair models\active_release.json.
+    pause
+    exit /b 1
+)
+
+echo.
+echo [INFO] Starting hidden MUN detector...
+.venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py start
+if %errorlevel% neq 0 (
+    echo [ERROR] Hidden MUN detector failed to start.
+    echo Dev mode is fail-fast. Fix the hidden detector before retrying.
     pause
     exit /b 1
 )
@@ -63,25 +62,24 @@ if %errorlevel% neq 0 (
 if not exist "models\forgery_model_me.hdf5" (
     echo.
     echo [WARNING] Optional video model missing: models\forgery_model_me.hdf5
-    echo Video analysis will stay unavailable until you copy the file manually.
-    echo.
+    echo Video analysis will remain unavailable until you copy the file manually.
 )
 
 echo.
 echo [INFO] Starting Django development server...
 echo.
-echo Server will be available at:
+echo Server URLs:
 echo   - http://127.0.0.1:8001/
 echo   - http://localhost:8001/
+echo Hidden detector health:
+echo   - http://127.0.0.1:8011/health
 echo.
-echo Press Ctrl+C to stop the server
+echo Press Ctrl+C to stop the server.
 echo ========================================================
 echo.
 
-:: Start Django server using virtual environment's Python directly
 .venv-tf\Scripts\python.exe manage.py runserver 0.0.0.0:8001
 
-:: If server stops, pause to show any error messages
 echo.
-echo [INFO] Server stopped.
+echo [INFO] Django server stopped.
 pause

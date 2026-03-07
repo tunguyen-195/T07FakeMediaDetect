@@ -92,7 +92,7 @@
                                                 <td style="vertical-align: middle;">
                                                     <span
                                                         style="font-size: 1.1rem; font-weight: 600; 
-                                                        color: {% if res.type == 'Ảnh nguyên bản' %}var(--primary-light){% else %}#ef4444{% endif %};">
+                                                        color: {% if res.final_label == 'Authentic' %}var(--primary-light){% elif res.final_label == 'Review' %}#f59e0b{% else %}#ef4444{% endif %};">
                                                         {{ res.type }}
                                                     </span>
                                                 </td>
@@ -122,6 +122,12 @@
                             </div>
                             {% endif %}
                         </form>
+
+                        {% if error %}
+                        <div class="alert alert-warning mt-3" role="alert">
+                            {{ error }}
+                        </div>
+                        {% endif %}
 
                         {% if not pdf_img %}
                         <div class="mt-3"

@@ -59,9 +59,11 @@ install.bat
 
 What `install.bat` does for the Windows dev flow:
 - creates `.venv-tf`
+- creates `.venv-mun` for the hidden MUN detector
 - installs `requirements.txt`
 - auto-downloads Poppler if missing
 - validates the bundled image/PDF release in `models/active_release.json`
+- downloads and validates hidden MUN weights automatically
 - runs `manage.py migrate`
 
 3. **Optional video setup**
@@ -74,6 +76,12 @@ What `install.bat` does for the Windows dev flow:
 ```bash
 start.bat
 ```
+
+What `start.bat` does for the Windows dev flow:
+- validates the active TensorFlow image/PDF bundle
+- starts the hidden MUN detector on `127.0.0.1:8011`
+- fails fast if the hidden detector is not healthy
+- starts Django on `127.0.0.1:8001`
 
 5. **Access the application**
 

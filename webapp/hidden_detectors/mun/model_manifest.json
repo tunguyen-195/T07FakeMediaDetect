@@ -1,0 +1,21 @@
+{
+  "model_name": "MUN",
+  "version": "aaai2025-main",
+  "checkpoint": {
+    "download_url": "https://drive.google.com/uc?id=1Lww1Y3BX-DwzybwehSgdOv-yDNF1Pgm_",
+    "expected_file_name": "mun_ckpt.pth",
+    "sha256": "156136a3931cc86f568acb43e301ec4c47e9e78fd00cc3153cfd9406f4a97be3",
+    "size_bytes": 2158332740
+  },
+  "noiseprint_checkpoint": {
+    "download_url": "https://raw.githubusercontent.com/MrHuan3/MUN/main/mmseg/datasets/transforms/NoisePrintPlus/npp.pth",
+    "expected_file_name": "npp.pth",
+    "sha256": "b433a5e97e204400147b2b8845dfcd066209ff31d822b572ff53fb12f38cbd29",
+    "size_bytes": 2271092
+  },
+  "sidecar": {
+    "host": "127.0.0.1",
+    "port": 8011,
+    "timeout_seconds": 60
+  }
+}

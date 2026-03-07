@@ -23,6 +23,15 @@ try:
 except Exception:
     sklearn = None
 
+from website.ImageForgeryDetection.fusion import (
+    build_current_only_result,
+    fuse_detector_votes,
+)
+from website.ImageForgeryDetection.hidden_detector_client import (
+    create_request_id,
+    predict_hidden_detector,
+)
+
 # Import Benford module + feature contract
 try:
     from website.ImageForgeryDetection.benford_analysis import (
@@ -234,6 +243,105 @@ class FID:
         )
         return p_authentic, p_forged
 
+    def _run_current_detector(self, fname):
+        active_manifest = self._get_preferred_artifact_manifest()
+        runtime_manifest = active_manifest
+
+        try:
+            p_authentic, p_forged = self._run_cnn_inference(fname, runtime_manifest)
+        except Exception as e:
+            print(
+                f"Preferred CNN bundle failed: {runtime_manifest['release_id']} ({e}). "
+                "Trying legacy runtime."
+            )
+            runtime_manifest = self._get_legacy_artifact_manifest()
+            try:
+                p_authentic, p_forged = self._run_cnn_inference(fname, runtime_manifest)
+            except Exception as legacy_e:
+                raise RuntimeError(f"Legacy CNN fallback failed: {legacy_e}") from legacy_e
+
+        if extract_benford_features:
+            try:
+                print("=== RUNNING HYBRID ANALYSIS (CNN + BENFORD) ===")
+                svm, scaler, metadata = self._load_hybrid_components(runtime_manifest)
+
+                benford_feats = extract_benford_features(fname)
+                combined_features = np.hstack(([p_forged], benford_feats)).reshape(1, -1)
+
+                if combined_features.shape[1] != len(HYBRID_FEATURE_ORDER):
+                    raise ValueError(
+                        f"Hybrid feature width mismatch: got={combined_features.shape[1]} expected={len(HYBRID_FEATURE_ORDER)}"
+                    )
+
+                print(
+                    f"Hybrid features shape={combined_features.shape}, feature_schema={metadata['feature_schema_version']}"
+                )
+
+                scaled_features = scaler.transform(combined_features)
+                svm_probs = svm.predict_proba(scaled_features)[0]
+                prob_forged = float(svm_probs[1])
+                prediction = "Forged" if prob_forged > 0.5 else "Authentic"
+                confidence = prob_forged if prediction == "Forged" else (1.0 - prob_forged)
+
+                print(f"Hybrid SVM Prob (Forged): {prob_forged:.6f}")
+                print(f"Hybrid Result: {prediction} ({confidence * 100:0.2f}%)")
+                return {
+                    "score_forged": prob_forged,
+                    "label": prediction,
+                    "confidence": round(confidence * 100.0, 2),
+                    "source": "hybrid",
+                    "release_id": runtime_manifest["release_id"],
+                }
+
+            except Exception as e:
+                print(
+                    f"Hybrid unavailable for bundle {runtime_manifest['release_id']}: {e}."
+                )
+                if runtime_manifest.get("bundle_source") != "legacy":
+                    print("Trying legacy runtime bundle for full fallback.")
+                    legacy_manifest = self._get_legacy_artifact_manifest()
+                    try:
+                        p_authentic, p_forged = self._run_cnn_inference(fname, legacy_manifest)
+                        svm, scaler, metadata = self._load_hybrid_components(legacy_manifest)
+                        benford_feats = extract_benford_features(fname)
+                        combined_features = np.hstack(([p_forged], benford_feats)).reshape(1, -1)
+                        if combined_features.shape[1] != len(HYBRID_FEATURE_ORDER):
+                            raise ValueError(
+                                f"Hybrid feature width mismatch: got={combined_features.shape[1]} expected={len(HYBRID_FEATURE_ORDER)}"
+                            )
+
+                        scaled_features = scaler.transform(combined_features)
+                        svm_probs = svm.predict_proba(scaled_features)[0]
+                        prob_forged = float(svm_probs[1])
+                        prediction = "Forged" if prob_forged > 0.5 else "Authentic"
+                        confidence = prob_forged if prediction == "Forged" else (1.0 - prob_forged)
+
+                        print(f"Legacy hybrid Result: {prediction} ({confidence * 100:0.2f}%)")
+                        return {
+                            "score_forged": prob_forged,
+                            "label": prediction,
+                            "confidence": round(confidence * 100.0, 2),
+                            "source": "hybrid",
+                            "release_id": legacy_manifest["release_id"],
+                        }
+                    except Exception as legacy_e:
+                        print(
+                            f"Legacy hybrid fallback unavailable: {legacy_e}. "
+                            "Falling back to CNN-only."
+                        )
+
+        print("=== FALLBACK TO CNN ONLY ===")
+        prediction = "Forged" if p_authentic <= 0.5 else "Authentic"
+        confidence = (1.0 - p_authentic) if prediction == "Forged" else p_authentic
+        print(f"CNN Result: {prediction} ({confidence * 100:0.2f}%)")
+        return {
+            "score_forged": float(p_forged),
+            "label": prediction,
+            "confidence": round(confidence * 100.0, 2),
+            "source": "cnn_only",
+            "release_id": runtime_manifest["release_id"],
+        }
+
     def _prepare_pickle_compat(self):
         """
         Alias numpy internals used by pickles produced in newer Colab runtimes.
@@ -396,106 +504,56 @@ class FID:
                 + "; ".join(mismatches)
             )
 
-    def predict_result(self, fname):
+    def predict_result_structured(self, fname, source_type="image", require_hidden=True):
         print("=== PREDICTING RESULT ===")
-
-        active_manifest = self._get_preferred_artifact_manifest()
-        runtime_manifest = active_manifest
+        current_result = self._run_current_detector(fname)
+        request_id = create_request_id()
 
         try:
-            p_authentic, p_forged = self._run_cnn_inference(fname, runtime_manifest)
-        except Exception as e:
-            print(
-                f"Preferred CNN bundle failed: {runtime_manifest['release_id']} ({e}). "
-                "Trying legacy runtime."
+            hidden_result = predict_hidden_detector(
+                fname,
+                source_type=source_type,
+                request_id=request_id,
             )
-            runtime_manifest = self._get_legacy_artifact_manifest()
-            try:
-                p_authentic, p_forged = self._run_cnn_inference(fname, runtime_manifest)
-            except Exception as legacy_e:
-                print(f"Legacy CNN fallback failed: {legacy_e}")
-                return ("Error", "0.00")
+            fused = fuse_detector_votes(
+                current_result["score_forged"],
+                current_result["source"],
+                hidden_result["forged_score"],
+                hidden_result["label"],
+                hidden_mask_path=hidden_result.get("mask_path"),
+                hidden_model_name=hidden_result.get("model_name"),
+                hidden_latency_ms=hidden_result.get("latency_ms"),
+            )
+            fused["request_id"] = request_id
+            fused["current_release_id"] = current_result["release_id"]
+            print(
+                f"Final fused result: {fused['final_label']} "
+                f"(score={fused['final_score_forged']:.6f}, confidence={fused['final_confidence']:.2f}%)"
+            )
+            return fused
+        except Exception as hidden_e:
+            print(f"Hidden detector unavailable: {hidden_e}")
+            if require_hidden:
+                raise
+            fallback = build_current_only_result(
+                current_result["score_forged"],
+                current_result["source"],
+            )
+            fallback["request_id"] = request_id
+            fallback["current_release_id"] = current_result["release_id"]
+            fallback["hidden_error"] = str(hidden_e)
+            return fallback
 
-        # 3. Hybrid mode (strict metadata validation)
-        if extract_benford_features:
-            try:
-                print("=== RUNNING HYBRID ANALYSIS (CNN + BENFORD) ===")
-                svm, scaler, metadata = self._load_hybrid_components(runtime_manifest)
-
-                benford_feats = extract_benford_features(fname)
-                combined_features = np.hstack(([p_forged], benford_feats)).reshape(1, -1)
-
-                if combined_features.shape[1] != len(HYBRID_FEATURE_ORDER):
-                    raise ValueError(
-                        f"Hybrid feature width mismatch: got={combined_features.shape[1]} expected={len(HYBRID_FEATURE_ORDER)}"
-                    )
-
-                print(
-                    f"Hybrid features shape={combined_features.shape}, feature_schema={metadata['feature_schema_version']}"
-                )
-
-                scaled_features = scaler.transform(combined_features)
-                svm_probs = svm.predict_proba(scaled_features)[0]
-                prob_forged = float(svm_probs[1])  # class 1 = Forged
-
-                print(f"Hybrid SVM Prob (Forged): {prob_forged:.6f}")
-
-                if prob_forged > 0.5:
-                    prediction = "Forged"
-                    confidence = f"{prob_forged * 100:0.2f}"
-                else:
-                    prediction = "Authentic"
-                    confidence = f"{(1 - prob_forged) * 100:0.2f}"
-
-                print(f"Hybrid Result: {prediction} ({confidence}%)")
-                return (prediction, confidence)
-
-            except Exception as e:
-                print(
-                    f"Hybrid unavailable for bundle {runtime_manifest['release_id']}: {e}."
-                )
-                if runtime_manifest.get("bundle_source") != "legacy":
-                    print("Trying legacy runtime bundle for full fallback.")
-                    legacy_manifest = self._get_legacy_artifact_manifest()
-                    try:
-                        p_authentic, p_forged = self._run_cnn_inference(fname, legacy_manifest)
-                        svm, scaler, metadata = self._load_hybrid_components(legacy_manifest)
-                        benford_feats = extract_benford_features(fname)
-                        combined_features = np.hstack(([p_forged], benford_feats)).reshape(1, -1)
-                        if combined_features.shape[1] != len(HYBRID_FEATURE_ORDER):
-                            raise ValueError(
-                                f"Hybrid feature width mismatch: got={combined_features.shape[1]} expected={len(HYBRID_FEATURE_ORDER)}"
-                            )
-
-                        scaled_features = scaler.transform(combined_features)
-                        svm_probs = svm.predict_proba(scaled_features)[0]
-                        prob_forged = float(svm_probs[1])
-                        if prob_forged > 0.5:
-                            prediction = "Forged"
-                            confidence = f"{prob_forged * 100:0.2f}"
-                        else:
-                            prediction = "Authentic"
-                            confidence = f"{(1 - prob_forged) * 100:0.2f}"
-
-                        print(f"Legacy hybrid Result: {prediction} ({confidence}%)")
-                        return (prediction, confidence)
-                    except Exception as legacy_e:
-                        print(
-                            f"Legacy hybrid fallback unavailable: {legacy_e}. "
-                            "Falling back to CNN-only."
-                        )
-
-        # 4. Fallback (CNN only)
-        print("=== FALLBACK TO CNN ONLY ===")
-        if p_authentic <= 0.5:
-            prediction = "Forged"
-            confidence = f"{(1 - p_authentic) * 100:0.2f}"
-        else:
-            prediction = "Authentic"
-            confidence = f"{p_authentic * 100:0.2f}"
-
-        print(f"CNN Result: {prediction} ({confidence}%)")
-        return (prediction, confidence)
+    def predict_result(self, fname):
+        structured = self.predict_result_structured(
+            fname,
+            source_type="image",
+            require_hidden=False,
+        )
+        return (
+            structured["final_label"],
+            f"{structured['final_confidence']:0.2f}",
+        )
 
     def genMask(self, file_path):
         segmenter = initSegmenter()

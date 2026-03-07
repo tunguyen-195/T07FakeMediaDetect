@@ -1,21 +1,16 @@
 @echo off
-:: ====================================================================
-:: T07FakeMediaDetect - Status Check Script
-:: Hệ thống phát hiện tệp đa phương tiện đã bị chỉnh sửa T07
-:: ====================================================================
+setlocal
 
 COLOR 0B
-title T07FakeMediaDetect - System Status
+title T07FakeMediaDetect - Status
 
 echo.
 echo ========================================================
 echo  T07FakeMediaDetect - System Status
-echo  Hệ thống phát hiện tệp đa phương tiện giả mạo T07
 echo ========================================================
 echo.
 
-:: Check Python
-echo [CHECK 1/5] Python Installation (System):
+echo [CHECK 1/6] Python Installation (System):
 python --version 2>nul
 if %errorlevel% equ 0 (
     echo   Status: OK
@@ -24,29 +19,39 @@ if %errorlevel% equ 0 (
 )
 echo.
 
-:: Check Virtual Environment
-echo [CHECK 2/5] Virtual Environment:
+echo [CHECK 2/6] Virtual Environment (.venv-tf):
 if exist ".venv-tf\Scripts\python.exe" (
     echo   Status: OK
     .venv-tf\Scripts\python.exe --version
 ) else (
     echo   Status: NOT FOUND
-    echo   Run 'install.bat' to create virtual environment
+    echo   Run install.bat to create the virtual environment.
 )
 echo.
 
-:: Check Runtime Bundle
-echo [CHECK 3/5] Image/PDF Runtime Bundle:
+echo [CHECK 3/6] Image/PDF Runtime Bundle:
 if exist ".venv-tf\Scripts\python.exe" (
     .venv-tf\Scripts\python.exe scripts\check_dev_runtime.py --mode status
 ) else (
     echo   Status: UNKNOWN
-    echo   Create the virtual environment first with install.bat
+    echo   Create the virtual environment first with install.bat.
 )
 echo.
 
-:: Check Port 8001
-echo [CHECK 4/5] Server Status (Port 8001):
+echo [CHECK 4/6] Hidden MUN Detector:
+if exist ".venv-tf\Scripts\python.exe" (
+    .venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py status
+    if %errorlevel% neq 0 (
+        echo   Status: FAILED
+        echo   Run install.bat or start.bat to repair the hidden detector runtime.
+    )
+) else (
+    echo   Status: UNKNOWN
+    echo   Create the virtual environment first with install.bat.
+)
+echo.
+
+echo [CHECK 5/6] Django Server (Port 8001):
 netstat -ano | findstr :8001 | findstr LISTENING >nul 2>&1
 if %errorlevel% equ 0 (
     echo   Status: RUNNING
@@ -58,14 +63,13 @@ if %errorlevel% equ 0 (
 )
 echo.
 
-:: Check Database
-echo [CHECK 5/5] Database:
+echo [CHECK 6/6] Database:
 if exist "db.sqlite3" (
-    echo   Status: OK (db.sqlite3)
+    echo   Status: OK - db.sqlite3
     for %%A in ("db.sqlite3") do echo   Size: %%~zA bytes
 ) else (
     echo   Status: NOT FOUND
-    echo   Database will be created on first run
+    echo   Database will be created on first run.
 )
 echo.
 
@@ -78,5 +82,4 @@ echo   - Start server: start.bat
 echo   - Stop server:  stop.bat
 echo   - Install deps: install.bat
 echo.
-
 pause

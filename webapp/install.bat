@@ -1,9 +1,5 @@
 @echo off
-:: ====================================================================
-:: T07FakeMediaDetect - Installation Script
-:: Hệ thống phát hiện tệp đa phương tiện đã bị chỉnh sửa T07
-:: Yêu cầu: Python 3.9 (TensorFlow 2.6 không hỗ trợ Python 3.10+)
-:: ====================================================================
+setlocal
 
 COLOR 0B
 title T07FakeMediaDetect - Installation
@@ -11,115 +7,95 @@ title T07FakeMediaDetect - Installation
 echo.
 echo ========================================================
 echo  T07FakeMediaDetect - Installation Setup
-echo  He thong phat hien tep da phuong tien gia mao T07
+echo  Dev runtime for image, PDF, and hidden MUN detector
 echo ========================================================
 echo.
 
-:: ============================================================
-:: Auto-detect Python 3.9 using py launcher or direct path
-:: ============================================================
-set PYTHON_CMD=
+set "PYTHON_CMD="
+set "PY_VER=not-found"
 
-:: Try 1: py -3.9 (Windows Python Launcher)
 py -3.9 --version >nul 2>&1
 if %errorlevel% equ 0 (
-    set PYTHON_CMD=py -3.9
+    set "PYTHON_CMD=py -3.9"
     goto :python_found
 )
 
-:: Try 2: python3.9
 python3.9 --version >nul 2>&1
 if %errorlevel% equ 0 (
-    set PYTHON_CMD=python3.9
+    set "PYTHON_CMD=python3.9"
     goto :python_found
 )
 
-:: Try 3: Check default python version
-for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set PY_VER=%%v
+for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set "PY_VER=%%v"
 echo [INFO] Default Python version: %PY_VER%
 echo %PY_VER% | findstr /B "3.9" >nul
 if %errorlevel% equ 0 (
-    set PYTHON_CMD=python
+    set "PYTHON_CMD=python"
     goto :python_found
 )
 
-:: Python 3.9 not found
 echo.
-echo [ERROR] Python 3.9 is REQUIRED but not found!
-echo.
-echo This project uses TensorFlow 2.6 which only supports Python 3.6-3.9.
-echo Your current Python version is: %PY_VER%
-echo.
-echo Please install Python 3.9 from:
-echo   https://www.python.org/downloads/release/python-3913/
-echo.
-echo NOTE: You can install Python 3.9 alongside your current Python.
-echo       After installing, run this script again.
-echo.
+echo [ERROR] Python 3.9 is required but not found.
+echo Current detected version: %PY_VER%
+echo Install Python 3.9 and run this script again.
 pause
 exit /b 1
 
 :python_found
-echo [INFO] Using Python 3.9:
+echo [INFO] Using Python:
 %PYTHON_CMD% --version
 echo.
 
-:: Check if virtual environment exists
 if exist ".venv-tf" (
     echo [INFO] Virtual environment already exists.
-    echo Do you want to recreate it? (This will delete existing environment^)
-    choice /C YN /M "Recreate virtual environment"
+    choice /C YN /M "Recreate .venv-tf and .venv-mun"
     if errorlevel 2 goto :skip_venv
     if errorlevel 1 (
-        echo [INFO] Removing old virtual environment...
-        rmdir /s /q .venv-tf
+        echo [INFO] Removing old virtual environments...
+        if exist ".venv-tf" rmdir /s /q .venv-tf
+        if exist ".venv-mun" rmdir /s /q .venv-mun
     )
 )
 
 :create_venv
-echo [INFO] Creating virtual environment with Python 3.9...
+echo [INFO] Creating .venv-tf with Python 3.9...
 %PYTHON_CMD% -m venv .venv-tf
 if %errorlevel% neq 0 (
-    echo [ERROR] Failed to create virtual environment!
+    echo [ERROR] Failed to create .venv-tf.
     pause
     exit /b 1
 )
 
 :skip_venv
-echo [INFO] Activating virtual environment...
-call .venv-tf\Scripts\activate.bat
+if not exist ".venv-tf\Scripts\python.exe" (
+    echo [ERROR] .venv-tf is missing after setup.
+    pause
+    exit /b 1
+)
 
-echo.
-echo [INFO] Upgrading pip...
-python -m pip install --upgrade pip
-
-echo.
-echo [INFO] Installing required packages...
-echo This may take several minutes...
-echo.
-
-pip install -r requirements.txt
-
+echo [INFO] Upgrading pip in .venv-tf...
+.venv-tf\Scripts\python.exe -m pip install --upgrade pip
 if %errorlevel% neq 0 (
-    echo.
-    echo [ERROR] Failed to install dependencies!
-    echo Please check requirements.txt and try again.
+    echo [ERROR] Failed to upgrade pip in .venv-tf.
     pause
     exit /b 1
 )
 
 echo.
-echo [INFO] Checking installed packages...
-pip list
+echo [INFO] Installing TensorFlow-side dependencies...
+.venv-tf\Scripts\python.exe -m pip install -r requirements.txt
+if %errorlevel% neq 0 (
+    echo [ERROR] Failed to install requirements.txt.
+    pause
+    exit /b 1
+)
 
 echo.
 echo [INFO] Ensuring Poppler is available for PDF analysis...
 if not exist "poppler\Library\bin\pdfinfo.exe" (
     call install_poppler.bat --no-pause
     if %errorlevel% neq 0 (
-        echo.
-        echo [ERROR] Poppler setup failed!
-        echo PDF analysis will not work until Poppler is installed.
+        echo [ERROR] Poppler setup failed.
         pause
         exit /b 1
     )
@@ -128,12 +104,20 @@ if not exist "poppler\Library\bin\pdfinfo.exe" (
 )
 
 echo.
-echo [INFO] Validating bundled image/PDF runtime...
+echo [INFO] Validating active image and PDF runtime bundle...
 .venv-tf\Scripts\python.exe scripts\check_dev_runtime.py --mode install
 if %errorlevel% neq 0 (
-    echo.
     echo [ERROR] Active image/PDF runtime bundle is incomplete.
-    echo Expected active release files under models\releases\run_20260306_055001\
+    pause
+    exit /b 1
+)
+
+echo.
+echo [INFO] Installing hidden MUN detector runtime...
+.venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py install
+if %errorlevel% neq 0 (
+    echo [ERROR] Hidden MUN detector installation failed.
+    echo Check network access, disk space, or model download errors.
     pause
     exit /b 1
 )
@@ -142,23 +126,19 @@ echo.
 echo [INFO] Running database migrations...
 .venv-tf\Scripts\python.exe manage.py migrate
 if %errorlevel% neq 0 (
-    echo.
-    echo [ERROR] Database migration failed!
+    echo [ERROR] Database migration failed.
     pause
     exit /b 1
 )
 
 echo.
 echo ========================================================
-echo  Installation completed successfully!
+echo  Installation completed successfully
 echo ========================================================
 echo.
 echo Next steps:
-echo 1. Run 'start.bat' to launch the server
-echo 2. Optional: copy forgery_model_me.hdf5 into models\ if you want video analysis
-echo 3. Optional: copy .env.example to .env if your local setup needs it
+echo   1. Run start.bat to launch Django and the hidden detector
+echo   2. Optional: copy forgery_model_me.hdf5 into models\ for video analysis
+echo   3. Run status.bat to verify both runtimes before demo
 echo.
-echo ========================================================
-echo.
-
 pause
