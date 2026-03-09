@@ -13,6 +13,9 @@ echo.
 if not defined T07_HIDDEN_BACKEND (
     set "T07_HIDDEN_BACKEND=off"
 )
+if not defined T07_PRIMARY_DISPLAY_NAME (
+    set "T07_PRIMARY_DISPLAY_NAME=CNN + SVM Benford"
+)
 if not defined T07_HIDDEN_GATE_REQUIRED (
     set "T07_HIDDEN_GATE_REQUIRED=1"
 )
@@ -30,7 +33,7 @@ echo [CHECK 2/7] Virtual Environment (.venv-tf):
 if exist ".venv-tf\Scripts\python.exe" (
     echo   Status: OK
     .venv-tf\Scripts\python.exe --version
-    echo   Default primary detector: cnn_only
+    echo   Primary detector display: %T07_PRIMARY_DISPLAY_NAME%
 ) else (
     echo   Status: NOT FOUND
     echo   Run install.bat to create the virtual environment.
@@ -63,7 +66,7 @@ echo [CHECK 5/7] Hidden Backend (%T07_HIDDEN_BACKEND%):
 if exist ".venv-tf\Scripts\python.exe" (
     .venv-tf\Scripts\python.exe scripts\manage_hidden_backend.py status --backend %T07_HIDDEN_BACKEND%
     if /I "%T07_HIDDEN_BACKEND%"=="off" (
-        echo   Status: DISABLED ^(CNN-only runtime^)
+        echo   Status: DISABLED ^(primary-only runtime^)
     ) else (
         if errorlevel 1 (
             echo   Status: FAILED

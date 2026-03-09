@@ -87,6 +87,9 @@
                                             style="font-size: 1.2rem;"></b></p>
                                     <p style="margin-bottom: 0;">Độ tin cậy: <b id="resultConfidence"
                                             style="font-size: 1.2rem;"></b></p>
+                                    <p style="margin-top: 0.5rem; margin-bottom: 0; color: var(--text-secondary);">
+                                        Model used: <b>{{ detector_display_name|default:"CNN + SVM Benford" }}</b>
+                                    </p>
                                     {% if result.detail %}
                                     <p style="margin-top: 0.75rem; margin-bottom: 0; color: var(--text-secondary);">
                                         {{ result.detail }}

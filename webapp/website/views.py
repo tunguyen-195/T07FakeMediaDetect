@@ -1,4 +1,4 @@
-﻿import datetime
+import datetime
 from django.shortcuts import render, redirect, HttpResponseRedirect
 import asyncio
 from multiprocessing import Pool
@@ -27,6 +27,8 @@ from django.core.files.storage import FileSystemStorage
 from optparse import OptionParser
 from json import dumps
 from pdf2image import convert_from_path
+from website.ImageForgeryDetection.hidden_detector_client import get_hidden_backend_display_name
+from website.ImageForgeryDetection.display_labels import get_primary_detector_display_name
 
 def detect_video_forgery(*args, **kwargs):
     from website.VideoForgeryDetection.detect_video import detect_video_forgery as _detect
@@ -61,6 +63,13 @@ def safe_print(*args, **kwargs):
             return
         except Exception:
             continue
+
+
+def render_with_detector(request, template_name, context=None):
+    payload = dict(context or {})
+    payload.setdefault("detector_display_name", get_primary_detector_display_name())
+    return render(request, template_name, payload)
+
 
 # Create your views here.
 
@@ -212,11 +221,11 @@ def video(request):
 
 
 def image(request):
-    return render(request, "image.html")
+    return render_with_detector(request, "image.html")
 
 
 def pdf(request):
-    return render(request, "pdf.html")
+    return render_with_detector(request, "pdf.html")
 
 
 def to_friendly_image_label(result_label, leaning_label=None):
@@ -255,6 +264,9 @@ def build_review_detail(result_label, leaning_label=None, leaning_confidence=Non
 
 
 def hidden_fail_fast_enabled():
+    hidden_flag = str(os.environ.get("T07_HIDDEN_FAIL_FAST", "")).strip()
+    if hidden_flag:
+        return hidden_flag == "1"
     return str(os.environ.get("T07_MUN_FAIL_FAST", "0")).strip() == "1"
 
 
@@ -265,7 +277,7 @@ def runPdf2image(request):
     if request.POST.get('run'):
         inputPdf = request.FILES['input_pdf'] if 'input_pdf' in request.FILES else None
         if not inputPdf:
-            return render(request, "pdf.html", {
+            return render_with_detector(request, "pdf.html", {
                 'error': 'Vui lÃ²ng chá»n tá»‡p PDF Ä‘á»ƒ phÃ¢n tÃ­ch.'
             })
         
@@ -342,7 +354,7 @@ def runPdf2image(request):
                 friendly_type = to_friendly_image_label(res['final_label'], res.get('leaning_label'))
                 hidden_warning = ''
                 if res.get('hidden_available') is False and res.get('hidden_error'):
-                    hidden_warning = f"MUN unavailable: {res.get('hidden_error')}"
+                    hidden_warning = f"{get_hidden_backend_display_name()} unavailable: {res.get('hidden_error')}"
                 base_detail = build_review_detail(
                     res['final_label'],
                     res.get('leaning_label'),
@@ -366,7 +378,7 @@ def runPdf2image(request):
                 
                 final_pdf_results.append((image_url, result_data))
             
-            return render(request, "pdf.html", {
+            return render_with_detector(request, "pdf.html", {
                 'input_pdf': inputPdfUrl,
                 'pdf_img': final_pdf_results
             })
@@ -375,7 +387,7 @@ def runPdf2image(request):
             safe_print(f"[ERROR] PDF processing failed: {str(e)}")
             import traceback
             traceback.print_exc()
-            return render(request, "pdf.html", {
+            return render_with_detector(request, "pdf.html", {
                 'error': f'Lá»—i xá»­ lÃ½ PDF: {str(e)}'
             })
 
@@ -393,13 +405,13 @@ def runPdf2image(request):
                 
                 safe_print(f"[DEBUG] Passing PDF page to image analysis: {fileurl}")
                 
-                return render(request, "image.html", {
+                return render_with_detector(request, "image.html", {
                     'input_image': inputImageUrl,
                     'input_image_name': get_display_image_name(fileurl, inputImageUrl),
                 })
         except Exception as e:
             safe_print(f"[ERROR] Failed to pass PDF page: {str(e)}")
-            return render(request, "image.html", {
+            return render_with_detector(request, "image.html", {
                 'result': {
                     'type': 'Lá»—i',
                     'confidence': '0.00',
@@ -408,7 +420,7 @@ def runPdf2image(request):
             })
     
     # Default return
-    return render(request, "pdf.html", {})
+    return render_with_detector(request, "pdf.html", {})
 
 
 
@@ -437,7 +449,7 @@ def runAnalysis(request):
 
             if not decoded_path or not os.path.exists(decoded_path):
                 result = {'type': 'Lá»—i', 'confidence': '0.00', 'detail': 'Vui lÃ²ng táº£i áº£nh hoáº·c chá»n áº£nh trÆ°á»›c khi cháº¡y.'}
-                return render(request, "image.html",
+                return render_with_detector(request, "image.html",
                               {
                                   'result': result,
                                   'input_image': inputImageUrl or '',
@@ -460,7 +472,7 @@ def runAnalysis(request):
                     "image.html",
                     {
                         'error': (
-                            "Hidden detector MUN is unavailable or returned an error. "
+                            "Configured hidden backend is unavailable or returned an error. "
                             f"Details: {str(e)}"
                         ),
                         'input_image': inputImageUrl or inputImage or '',
@@ -471,7 +483,7 @@ def runAnalysis(request):
             friendly_type = to_friendly_image_label(res['final_label'], res.get('leaning_label'))
             hidden_warning = ''
             if res.get('hidden_available') is False and res.get('hidden_error'):
-                hidden_warning = f"MUN unavailable: {res.get('hidden_error')}"
+                hidden_warning = f"{get_hidden_backend_display_name()} unavailable: {res.get('hidden_error')}"
             base_detail = build_review_detail(
                 res['final_label'],
                 res.get('leaning_label'),
@@ -495,7 +507,7 @@ def runAnalysis(request):
             inputImage = inputImageUrl
             inputImageUrl = ''
             
-            return render(request, "image.html",
+            return render_with_detector(request, "image.html",
                           {
                               'result': result,
                               'input_image': inputImage,
@@ -621,7 +633,7 @@ def getImages(request):
             'confidence': '0.00',
             'detail': 'Vui lÃ²ng táº£i áº£nh vÃ  cháº¡y phÃ¢n tÃ­ch trÆ°á»›c khi sá»­ dá»¥ng cÃ´ng cá»¥ forensics.'
         }
-        return render(request, "image.html", {
+        return render_with_detector(request, "image.html", {
             'result': error_result,
             'input_image': inputImage or '',
             'input_image_name': get_display_image_name(fileurl, inputImage),
@@ -637,7 +649,7 @@ def getImages(request):
             safe_print(f"[DEBUG] Running genMask on: {fileurl}")
             FID().genMask(fileurl)
             outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
-            return render(request, "image.html", {
+            return render_with_detector(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
                 'input_image_name': get_display_image_name(fileurl, inputImage),
@@ -649,7 +661,7 @@ def getImages(request):
             safe_print(f"[DEBUG] Running show_ela on: {fileurl}")
             FID().show_ela(fileurl)
             outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
-            return render(request, "image.html", {
+            return render_with_detector(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
                 'input_image_name': get_display_image_name(fileurl, inputImage),
@@ -661,7 +673,7 @@ def getImages(request):
             safe_print(f"[DEBUG] Running detect_edges on: {fileurl}")
             FID().detect_edges(fileurl)
             outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
-            return render(request, "image.html", {
+            return render_with_detector(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
                 'input_image_name': get_display_image_name(fileurl, inputImage),
@@ -673,7 +685,7 @@ def getImages(request):
             safe_print(f"[DEBUG] Running luminance_gradient on: {fileurl}")
             FID().luminance_gradient(fileurl)
             outputImageUrl = f"../media/luminance_gradient.png?t={timestamp}"
-            return render(request, "image.html", {
+            return render_with_detector(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
                 'input_image_name': get_display_image_name(fileurl, inputImage),
@@ -685,7 +697,7 @@ def getImages(request):
             safe_print(f"[DEBUG] Running apply_na on: {fileurl}")
             FID().apply_na(fileurl)
             outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
-            return render(request, "image.html", {
+            return render_with_detector(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
                 'input_image_name': get_display_image_name(fileurl, inputImage),
@@ -709,7 +721,7 @@ def getImages(request):
                     'detail': str(e)
                 }
             outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
-            return render(request, "image.html", {
+            return render_with_detector(request, "image.html", {
                 'url': outputImageUrl,
                 'input_image': inputImage,
                 'input_image_name': get_display_image_name(fileurl, inputImage),
@@ -727,7 +739,7 @@ def getImages(request):
             'detail': f'ÄÃ£ xáº£y ra lá»—i khi xá»­ lÃ½: {str(e)}'
         }
         outputImageUrl = f"../media/tempresaved.jpg?t={timestamp}"
-        return render(request, "image.html", {
+        return render_with_detector(request, "image.html", {
             'url': outputImageUrl,
             'input_image': inputImage,
             'input_image_name': get_display_image_name(fileurl, inputImage),
@@ -736,10 +748,9 @@ def getImages(request):
         })
     
     # If no action matched, return current state
-    return render(request, "image.html", {
+    return render_with_detector(request, "image.html", {
         'input_image': inputImage,
         'input_image_name': get_display_image_name(fileurl, inputImage),
         'result': result,
         'metadata': infoDict.items()
     })
-

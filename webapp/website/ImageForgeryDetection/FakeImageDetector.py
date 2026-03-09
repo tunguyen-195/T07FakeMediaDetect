@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import ctypes
 import shutil
@@ -33,8 +33,14 @@ from website.ImageForgeryDetection.benford_rich_client import (
 )
 from website.ImageForgeryDetection.hidden_detector_client import (
     create_request_id,
+    describe_hidden_backend_state,
+    get_hidden_backend_name,
     predict_hidden_detector,
 )
+from website.ImageForgeryDetection.display_labels import (
+    get_primary_detector_display_name,
+)
+
 
 
 def safe_print(*args, **kwargs):
@@ -146,7 +152,7 @@ def resolve_primary_detector_mode(environ=None):
             return explicit_mode
         safe_print(
             f"Warning: unsupported T07_PRIMARY_IMAGE_DETECTOR={explicit_mode}. "
-            "Falling back to cnn_only."
+            "Falling back to primary runtime."
         )
         return "cnn_only"
 
@@ -157,6 +163,7 @@ def resolve_primary_detector_mode(environ=None):
 
 
 PRIMARY_DETECTOR_MODE = resolve_primary_detector_mode()
+PRIMARY_DETECTOR_DISPLAY_NAME = get_primary_detector_display_name()
 DEFAULT_LEGACY_ARTIFACTS = {
     "release_id": "legacy_canonical",
     "bundle_source": "legacy",
@@ -383,7 +390,7 @@ class FID:
                             "Falling back to CNN-only."
                         )
 
-        safe_print("=== FALLBACK TO CNN ONLY ===")
+        safe_print("=== FALLBACK TO PRIMARY DETECTOR RUNTIME ===")
         prediction = "Forged" if p_authentic <= 0.5 else "Authentic"
         confidence = (1.0 - p_authentic) if prediction == "Forged" else p_authentic
         safe_print(f"CNN Result: {prediction} ({confidence * 100:0.2f}%)")
@@ -418,21 +425,20 @@ class FID:
         }
 
     def _run_primary_detector(self, fname, source_type="image"):
+        safe_print(f"=== RUNNING PRIMARY DETECTOR ({PRIMARY_DETECTOR_DISPLAY_NAME}) ===")
+
         if PRIMARY_DETECTOR_MODE == "cnn_only":
-            safe_print("=== RUNNING CNN-ONLY PRIMARY DETECTOR ===")
             return self._run_cnn_only_detector(fname)
 
         if PRIMARY_DETECTOR_MODE == "legacy_current":
-            safe_print("=== RUNNING LEGACY CURRENT PRIMARY DETECTOR ===")
             return self._run_legacy_current_detector(fname)
 
         try:
-            safe_print("=== RUNNING BENFORDRICH PRIMARY DETECTOR ===")
             return self._run_benford_rich_detector(fname, source_type=source_type)
         except Exception as e:
             safe_print(
                 f"BenfordRich detector unavailable: {e}. "
-                "Falling back to CNN-only detector."
+                "Falling back to primary detector runtime."
             )
             fallback = self._run_cnn_only_detector(fname)
             fallback["source"] = f"fallback_{fallback['source']}"
@@ -447,7 +453,7 @@ class FID:
             p_authentic, p_forged = self._run_cnn_inference(fname, runtime_manifest)
         except Exception as e:
             safe_print(
-                f"Preferred CNN bundle failed for CNN-only path: "
+                f"Preferred CNN bundle failed for primary runtime path: "
                 f"{runtime_manifest['release_id']} ({e}). Trying legacy runtime."
             )
             runtime_manifest = self._get_legacy_artifact_manifest()
@@ -627,12 +633,28 @@ class FID:
 
     def predict_result_structured(self, fname, source_type="image", require_hidden=True):
         safe_print("=== PREDICTING RESULT ===")
-        safe_print(f"Primary detector mode: {PRIMARY_DETECTOR_MODE}")
+        safe_print(f"Primary detector: {PRIMARY_DETECTOR_DISPLAY_NAME}")
         current_result = self._run_primary_detector(fname, source_type=source_type)
         request_id = create_request_id()
         strict_timeout = float(os.environ.get("T07_HIDDEN_DETECTOR_TIMEOUT_STRICT", "180"))
         optional_timeout = float(os.environ.get("T07_HIDDEN_DETECTOR_TIMEOUT_OPTIONAL", "30"))
         hidden_timeout = strict_timeout if require_hidden else optional_timeout
+        hidden_backend = get_hidden_backend_name()
+
+        enabled, state_detail = describe_hidden_backend_state(hidden_backend)
+        if not enabled:
+            safe_print(f"Hidden backend skipped: {state_detail}")
+            if require_hidden:
+                raise RuntimeError(state_detail)
+            fallback = build_current_only_result(
+                current_result["score_forged"],
+                current_result["source"],
+                hidden_backend=hidden_backend,
+            )
+            fallback["request_id"] = request_id
+            fallback["current_release_id"] = current_result["release_id"]
+            fallback["hidden_error"] = state_detail
+            return fallback
 
         try:
             hidden_result = predict_hidden_detector(
@@ -640,6 +662,8 @@ class FID:
                 source_type=source_type,
                 request_id=request_id,
                 timeout=hidden_timeout,
+                backend=hidden_backend,
+                enforce_gate=False,
             )
             fused = fuse_detector_votes(
                 current_result["score_forged"],
@@ -649,6 +673,7 @@ class FID:
                 hidden_mask_path=hidden_result.get("mask_path"),
                 hidden_model_name=hidden_result.get("model_name"),
                 hidden_latency_ms=hidden_result.get("latency_ms"),
+                hidden_backend=hidden_backend,
             )
             fused["request_id"] = request_id
             fused["current_release_id"] = current_result["release_id"]
@@ -658,12 +683,13 @@ class FID:
             )
             return fused
         except Exception as hidden_e:
-            safe_print(f"Hidden detector unavailable: {hidden_e}")
+            safe_print(f"Hidden backend unavailable ({hidden_backend}): {hidden_e}")
             if require_hidden:
                 raise
             fallback = build_current_only_result(
                 current_result["score_forged"],
                 current_result["source"],
+                hidden_backend=hidden_backend,
             )
             fallback["request_id"] = request_id
             fallback["current_release_id"] = current_result["release_id"]
@@ -790,4 +816,3 @@ class FID:
         na = self.noise_analysis(file_path, 90, intensity)
         na.save(resaved_filename, "JPEG")
         return na
-
