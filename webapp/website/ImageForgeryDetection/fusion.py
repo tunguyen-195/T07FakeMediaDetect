@@ -31,6 +31,7 @@ def leaning_from_score(score: float) -> tuple[str, float]:
 def build_current_only_result(
     score_forged: float,
     source: str,
+    hidden_backend: str | None = None,
 ) -> Dict[str, Any]:
     score = clamp_score(score_forged)
     label = label_from_score(score)
@@ -40,6 +41,7 @@ def build_current_only_result(
         "current_label": label,
         "current_confidence": leaning_confidence,
         "current_source": source,
+        "hidden_backend": hidden_backend,
         "hidden_score_forged": None,
         "hidden_label": None,
         "hidden_confidence": None,
@@ -65,6 +67,7 @@ def fuse_detector_votes(
     hidden_mask_path: str | None = None,
     hidden_model_name: str | None = None,
     hidden_latency_ms: float | None = None,
+    hidden_backend: str | None = None,
 ) -> Dict[str, Any]:
     current_score = clamp_score(current_score_forged)
     hidden_score = clamp_score(hidden_score_forged)
@@ -98,6 +101,7 @@ def fuse_detector_votes(
             2,
         ),
         "current_source": current_source,
+        "hidden_backend": hidden_backend,
         "hidden_score_forged": round(hidden_score, 6),
         "hidden_label": hidden_label or label_from_score(hidden_score),
         "hidden_confidence": round(

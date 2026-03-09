@@ -353,7 +353,12 @@ def runPdf2image(request):
                 )
                 friendly_type = to_friendly_image_label(res['final_label'], res.get('leaning_label'))
                 hidden_warning = ''
-                if res.get('hidden_available') is False and res.get('hidden_error'):
+                hidden_backend = str(res.get('hidden_backend', '')).strip().lower()
+                if (
+                    hidden_backend != 'off'
+                    and res.get('hidden_available') is False
+                    and res.get('hidden_error')
+                ):
                     hidden_warning = f"{get_hidden_backend_display_name()} unavailable: {res.get('hidden_error')}"
                 base_detail = build_review_detail(
                     res['final_label'],
@@ -482,7 +487,12 @@ def runAnalysis(request):
                 )
             friendly_type = to_friendly_image_label(res['final_label'], res.get('leaning_label'))
             hidden_warning = ''
-            if res.get('hidden_available') is False and res.get('hidden_error'):
+            hidden_backend = str(res.get('hidden_backend', '')).strip().lower()
+            if (
+                hidden_backend != 'off'
+                and res.get('hidden_available') is False
+                and res.get('hidden_error')
+            ):
                 hidden_warning = f"{get_hidden_backend_display_name()} unavailable: {res.get('hidden_error')}"
             base_detail = build_review_detail(
                 res['final_label'],
