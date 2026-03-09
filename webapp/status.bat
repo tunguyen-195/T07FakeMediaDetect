@@ -10,6 +10,13 @@ echo  T07FakeMediaDetect - System Status
 echo ========================================================
 echo.
 
+if not defined T07_HIDDEN_BACKEND (
+    set "T07_HIDDEN_BACKEND=off"
+)
+if not defined T07_HIDDEN_GATE_REQUIRED (
+    set "T07_HIDDEN_GATE_REQUIRED=1"
+)
+
 echo [CHECK 1/7] Python Installation (System):
 python --version 2>nul
 if %errorlevel% equ 0 (
@@ -52,13 +59,19 @@ if exist ".venv-tf\Scripts\python.exe" (
 )
 echo.
 
-echo [CHECK 5/7] Hidden MUN Detector:
+echo [CHECK 5/7] Hidden Backend (%T07_HIDDEN_BACKEND%):
 if exist ".venv-tf\Scripts\python.exe" (
-    .venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py status
-    if %errorlevel% neq 0 (
-        echo   Status: FAILED
-        echo   Run ".venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py probe" for root-cause diagnostics.
-        echo   Run install.bat or start.bat to repair the hidden detector runtime.
+    .venv-tf\Scripts\python.exe scripts\manage_hidden_backend.py status --backend %T07_HIDDEN_BACKEND%
+    if /I "%T07_HIDDEN_BACKEND%"=="off" (
+        echo   Status: DISABLED ^(CNN-only runtime^)
+    ) else (
+        if errorlevel 1 (
+            echo   Status: FAILED
+            echo   Run ".venv-tf\Scripts\python.exe scripts\manage_hidden_backend.py probe --backend %T07_HIDDEN_BACKEND%" for diagnostics.
+            echo   Run install.bat or start.bat to repair hidden backend runtime.
+        ) else (
+            echo   Status: OK
+        )
     )
 ) else (
     echo   Status: UNKNOWN

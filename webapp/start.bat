@@ -7,7 +7,7 @@ title T07FakeMediaDetect - Start
 echo.
 echo ========================================================
 echo  T07FakeMediaDetect - Start
-echo  Django + active image/PDF bundle + CNN-only primary + hidden MUN detector
+echo  Django + active image/PDF bundle + CNN-only primary + hidden backend
 echo ========================================================
 echo.
 
@@ -17,10 +17,20 @@ if not defined T07_PRIMARY_IMAGE_DETECTOR (
 if not defined T07_START_BENFORD_RICH (
     set "T07_START_BENFORD_RICH=0"
 )
-if not defined T07_MUN_FAIL_FAST (
-    set "T07_MUN_FAIL_FAST=0"
+if not defined T07_HIDDEN_BACKEND (
+    set "T07_HIDDEN_BACKEND=off"
 )
-set "T07_MUN_AVAILABLE=0"
+if not defined T07_HIDDEN_GATE_REQUIRED (
+    set "T07_HIDDEN_GATE_REQUIRED=1"
+)
+if not defined T07_HIDDEN_FAIL_FAST (
+    if defined T07_MUN_FAIL_FAST (
+        set "T07_HIDDEN_FAIL_FAST=%T07_MUN_FAIL_FAST%"
+    ) else (
+        set "T07_HIDDEN_FAIL_FAST=0"
+    )
+)
+set "T07_HIDDEN_AVAILABLE=0"
 
 if not exist ".venv-tf\Scripts\python.exe" (
     echo [ERROR] .venv-tf is missing.
@@ -74,23 +84,28 @@ if /I "%T07_START_BENFORD_RICH%"=="1" (
 )
 
 echo.
-echo [INFO] Starting hidden MUN detector...
-.venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py start
-if %errorlevel% neq 0 (
-    if /I "%T07_MUN_FAIL_FAST%"=="1" (
-        echo [ERROR] Hidden MUN detector failed to start.
-        echo Strict mode enabled via T07_MUN_FAIL_FAST=1. Startup is blocked.
-        echo Check log: hidden_detector_mun.log
-        pause
-        exit /b 1
-    ) else (
-        echo [WARNING] Hidden MUN detector failed to start.
-        echo [WARNING] Continuing with fallback runtime: CNN-only.
-        echo [WARNING] Set T07_MUN_FAIL_FAST=1 to restore strict fail-fast behavior.
-        echo [WARNING] Check log: hidden_detector_mun.log
-    )
+echo [INFO] Hidden backend configured: %T07_HIDDEN_BACKEND%
+if /I "%T07_HIDDEN_BACKEND%"=="off" (
+    echo [INFO] Hidden backend is disabled. Running CNN-only/fallback mode.
 ) else (
-    set "T07_MUN_AVAILABLE=1"
+    echo [INFO] Starting hidden backend runtime...
+    .venv-tf\Scripts\python.exe scripts\manage_hidden_backend.py start --backend %T07_HIDDEN_BACKEND%
+    if %errorlevel% neq 0 (
+        if /I "%T07_HIDDEN_FAIL_FAST%"=="1" (
+            echo [ERROR] Hidden backend "%T07_HIDDEN_BACKEND%" failed to start.
+            echo Strict mode enabled via T07_HIDDEN_FAIL_FAST=1. Startup is blocked.
+            echo Check backend log files: hidden_detector_*.log
+            pause
+            exit /b 1
+        ) else (
+            echo [WARNING] Hidden backend "%T07_HIDDEN_BACKEND%" failed to start.
+            echo [WARNING] Continuing with fallback runtime: CNN-only.
+            echo [WARNING] Set T07_HIDDEN_FAIL_FAST=1 to restore strict fail-fast behavior.
+            echo [WARNING] Check backend log files: hidden_detector_*.log
+        )
+    ) else (
+        set "T07_HIDDEN_AVAILABLE=1"
+    )
 )
 
 if not exist "models\forgery_model_me.hdf5" (
@@ -111,12 +126,44 @@ if /I "%T07_START_BENFORD_RICH%"=="1" (
 echo BenfordRich detector health:
 echo   - http://127.0.0.1:8012/health
 )
-if /I "%T07_MUN_AVAILABLE%"=="1" (
-echo Hidden detector health:
-echo   - http://127.0.0.1:8011/health
+echo Hidden backend:
+echo   - %T07_HIDDEN_BACKEND%
+if /I "%T07_HIDDEN_BACKEND%"=="noiseprint" (
+    if /I "%T07_HIDDEN_AVAILABLE%"=="1" (
+        echo Hidden detector health:
+        echo   - http://127.0.0.1:8013/health
+    ) else (
+        echo Hidden detector status:
+        echo   - unavailable ^(running fallback CNN-only mode^)
+    )
 ) else (
-echo Hidden detector status:
-echo   - unavailable (running fallback CNN-only mode^)
+    if /I "%T07_HIDDEN_BACKEND%"=="comprint" (
+        if /I "%T07_HIDDEN_AVAILABLE%"=="1" (
+            echo Hidden detector health:
+            echo   - http://127.0.0.1:8014/health
+        ) else (
+            echo Hidden detector status:
+            echo   - unavailable ^(running fallback CNN-only mode^)
+        )
+    ) else (
+        if /I "%T07_HIDDEN_BACKEND%"=="mun" (
+            if /I "%T07_HIDDEN_AVAILABLE%"=="1" (
+                echo Hidden detector health:
+                echo   - http://127.0.0.1:8011/health
+            ) else (
+                echo Hidden detector status:
+                echo   - unavailable ^(running fallback CNN-only mode^)
+            )
+        ) else (
+            if /I "%T07_HIDDEN_BACKEND%"=="off" (
+                echo Hidden detector status:
+                echo   - disabled
+            ) else (
+                echo Hidden detector status:
+                echo   - external backend, verify its health endpoint separately
+            )
+        )
+    )
 )
 echo.
 echo Press Ctrl+C to stop the server.

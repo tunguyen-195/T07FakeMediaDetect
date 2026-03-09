@@ -1,0 +1,15 @@
+{
+  "model_name": "PhotoHolmes",
+  "version": "cpu_v1",
+  "sidecars": {
+    "noiseprint": {
+      "host": "127.0.0.1",
+      "port": 8013
+    },
+    "comprint": {
+      "host": "127.0.0.1",
+      "port": 8014
+    }
+  },
+  "notes": "PhotoHolmes upstream methods on CPU. noiseprint maps to Splicebuster, comprint maps to Noisesniffer for backward-compatible backend names."
+}

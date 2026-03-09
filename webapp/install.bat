@@ -7,9 +7,13 @@ title T07FakeMediaDetect - Installation
 echo.
 echo ========================================================
 echo  T07FakeMediaDetect - Installation Setup
-echo  Dev runtime for image, PDF, BenfordRich, and hidden MUN detector
+echo  Dev runtime for image, PDF, BenfordRich, and hidden backend
 echo ========================================================
 echo.
+
+if not defined T07_HIDDEN_BACKEND (
+    set "T07_HIDDEN_BACKEND=off"
+)
 
 set "PYTHON_CMD="
 set "PY_VER=not-found"
@@ -48,13 +52,15 @@ echo.
 
 if exist ".venv-tf" (
     echo [INFO] Virtual environment already exists.
-    choice /C YN /M "Recreate .venv-tf, .venv-benford, and .venv-mun"
+    choice /C YN /M "Recreate .venv-tf, .venv-benford, .venv-mun, and .venv-photoholmes311"
     if errorlevel 2 goto :skip_venv
     if errorlevel 1 (
         echo [INFO] Removing old virtual environments...
         if exist ".venv-tf" rmdir /s /q .venv-tf
         if exist ".venv-benford" rmdir /s /q .venv-benford
         if exist ".venv-mun" rmdir /s /q .venv-mun
+        if exist ".venv-photoholmes" rmdir /s /q .venv-photoholmes
+        if exist ".venv-photoholmes311" rmdir /s /q .venv-photoholmes311
     )
 )
 
@@ -123,11 +129,11 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [INFO] Installing hidden MUN detector runtime...
-.venv-tf\Scripts\python.exe scripts\manage_hidden_detector.py install
+echo [INFO] Installing hidden backend runtime (%T07_HIDDEN_BACKEND%)...
+.venv-tf\Scripts\python.exe scripts\manage_hidden_backend.py install --backend %T07_HIDDEN_BACKEND%
 if %errorlevel% neq 0 (
-    echo [ERROR] Hidden MUN detector installation failed.
-    echo Check network access, disk space, or model download errors.
+    echo [ERROR] Hidden backend installation failed.
+    echo Check backend dependencies, local runtime logs, and environment settings.
     pause
     exit /b 1
 )
@@ -147,7 +153,7 @@ echo  Installation completed successfully
 echo ========================================================
 echo.
 echo Next steps:
-echo   1. Run start.bat to launch Django, BenfordRich, and the hidden detector
+echo   1. Run start.bat to launch Django and the selected hidden backend
 echo   2. Optional: copy forgery_model_me.hdf5 into models\ for video analysis
 echo   3. Run status.bat to verify all runtimes before demo
 echo.
