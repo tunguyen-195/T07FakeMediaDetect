@@ -83,6 +83,9 @@
                                             style="font-size: 1.2rem;">{{result.result}}</b></p>
                                     <p style="margin-bottom: 0;">Số khung hình bị can thiệp: <b
                                             style="font-size: 1.2rem;">{{result.f_frames}}</b></p>
+                                    {% if result.detail %}
+                                    <p style="margin-top: 0.5rem; margin-bottom: 0; opacity: 0.95;">Chi tiết: {{result.detail}}</p>
+                                    {% endif %}
                                 </div>
                             </div>
                             {% endif %}

@@ -559,9 +559,9 @@ def runVideoAnalysis(request):
             except Exception as e:
                 safe_print(f"[ERROR] Video upload failed: {str(e)}")
                 error_result = {
-                    'result': 'Lá»—i',
+                    'result': 'Lỗi',
                     'f_frames': 0,
-                    'detail': f'Lá»—i táº£i video: {str(e)}'
+                    'detail': f'Lỗi tải video: {str(e)}'
                 }
                 return render(request, "video.html", {'result': error_result})
 
@@ -580,9 +580,9 @@ def runVideoAnalysis(request):
         if not fileVideoUrl or not os.path.exists(fileVideoUrl):
             safe_print(f"[ERROR] Video file not found or not uploaded yet")
             error_result = {
-                'result': 'Lá»—i',
+                'result': 'Lỗi',
                 'f_frames': 0,
-                'detail': 'Vui lÃ²ng táº£i video trÆ°á»›c khi phÃ¢n tÃ­ch.'
+                'detail': 'Vui lòng tải video trước khi phân tích.',
             }
             return render(request, "video.html", {
                 'input_video': inputVideoUrl if inputVideoUrl else '',
@@ -602,9 +602,9 @@ def runVideoAnalysis(request):
             
             # Map result to Vietnamese
             if result.get('result') == 'Authentic':
-                result['result'] = 'Video nguyÃªn báº£n'
+                result['result'] = 'Video nguyên bản'
             elif result.get('result') == 'Forged':
-                result['result'] = 'Video Ä‘Ã£ qua chá»‰nh sá»­a'
+                result['result'] = 'Video đã qua chỉnh sửa'
                 
             safe_print(f"[DEBUG] Detection result: {result}")
             
@@ -618,7 +618,7 @@ def runVideoAnalysis(request):
             import traceback
             traceback.print_exc()
             error_result = {
-                'result': 'Lá»—i phÃ¢n tÃ­ch',
+                'result': 'Lỗi phân tích',
                 'f_frames': 0,
                 'detail': str(e)
             }
