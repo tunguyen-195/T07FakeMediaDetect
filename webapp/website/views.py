@@ -212,6 +212,33 @@ def get_video_metadata(filename):
     return properties
 
 
+def _persist_uploaded_video(request):
+    input_video = request.FILES['input_video'] if 'input_video' in request.FILES else None
+    if not input_video:
+        return '', '', None
+
+    try:
+        fs = FileSystemStorage()
+        saved_name = fs.save(input_video.name, input_video)
+        input_video_url = '../media/' + saved_name
+        file_video_url = os.path.join(os.getcwd(), 'media', saved_name)
+
+        request.session['inputVideoUrl'] = input_video_url
+        request.session['fileVideoUrl'] = file_video_url
+
+        safe_print(f"[DEBUG] Video uploaded: {file_video_url}")
+        safe_print("[DEBUG] Stored in session")
+        return input_video_url, file_video_url, None
+    except Exception as e:
+        safe_print(f"[ERROR] Video upload failed: {str(e)}")
+        error_result = {
+            'result': 'Lỗi',
+            'f_frames': 0,
+            'detail': f'Lỗi tải video: {str(e)}',
+        }
+        return '', '', error_result
+
+
 def index(request):
     return render(request, "index.html")
 
@@ -541,36 +568,23 @@ def runVideoAnalysis(request):
     # Use session instead of global variables (more reliable)
     
     if request.POST.get('run'):
-        input_video = request.FILES['input_video'] if 'input_video' in request.FILES else None
-        if input_video:
-            try:
-                fs = FileSystemStorage()
-                file = fs.save(input_video.name, input_video)
-                inputVideoUrl = '../media/' + input_video.name
-                fileVideoUrl = os.path.join(os.getcwd(), 'media', input_video.name)
-                
-                # Store in session for persistence
-                request.session['inputVideoUrl'] = inputVideoUrl
-                request.session['fileVideoUrl'] = fileVideoUrl
-                
-                safe_print(f"[DEBUG] Video uploaded: {fileVideoUrl}")
-                safe_print(f"[DEBUG] Stored in session")
-                return render(request, "video.html", {'input_video': inputVideoUrl})
-            except Exception as e:
-                safe_print(f"[ERROR] Video upload failed: {str(e)}")
-                error_result = {
-                    'result': 'Lỗi',
-                    'f_frames': 0,
-                    'detail': f'Lỗi tải video: {str(e)}'
-                }
-                return render(request, "video.html", {'result': error_result})
+        inputVideoUrl, _, error_result = _persist_uploaded_video(request)
+        if error_result:
+            return render(request, "video.html", {'result': error_result})
+        if inputVideoUrl:
+            return render(request, "video.html", {'input_video': inputVideoUrl})
 
     if request.POST.get('detect'):
         safe_print(f"[DEBUG] Detect button clicked!")
-        
-        # Retrieve from session
-        fileVideoUrl = request.session.get('fileVideoUrl', '')
-        inputVideoUrl = request.session.get('inputVideoUrl', '')
+
+        # Allow direct "detect" after file selection without requiring a prior upload submit.
+        uploaded_input_video_url, uploaded_file_video_url, error_result = _persist_uploaded_video(request)
+        if error_result:
+            return render(request, "video.html", {'result': error_result})
+
+        # Retrieve from session, but prefer the video that came with this request.
+        fileVideoUrl = uploaded_file_video_url or request.session.get('fileVideoUrl', '')
+        inputVideoUrl = uploaded_input_video_url or request.session.get('inputVideoUrl', '')
         
         safe_print(f"[DEBUG] Retrieved from session:")
         safe_print(f"[DEBUG]   fileVideoUrl: {fileVideoUrl}")
