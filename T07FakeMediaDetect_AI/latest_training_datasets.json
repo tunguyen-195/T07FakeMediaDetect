@@ -1,0 +1,24 @@
+{
+  "manifest_version": 1,
+  "generated_from": {
+    "notebook": "T07FakeMediaDetect_AI/Benford_SVM_FullData_Colab.ipynb",
+    "training_scope": "CASIA + Columbia",
+    "last_modified_local": "2026-03-07T15:29:32+07:00"
+  },
+  "kaggle_json_repo_path": "T07FakeMediaDetect_AI/bootstrap/kaggle.json",
+  "default_data_root": "Datasets",
+  "datasets": [
+    {
+      "name": "CASIA",
+      "slug": "divg07/casia-20-image-tampering-detection-dataset",
+      "relative_target_dir": "CASIA",
+      "min_existing_images": 200
+    },
+    {
+      "name": "COLUMBIA",
+      "slug": "shriya0/columbia",
+      "relative_target_dir": "COLUMBIA",
+      "min_existing_images": 30
+    }
+  ]
+}
